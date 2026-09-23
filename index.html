@@ -21,6 +21,7 @@ function graficosReserva(){ const s = document.createElement('script'); s.src = 
 <script src="https://cdn.jsdelivr.net/gh/gitbrent/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <style>
 :root{
   --bg:#F2F5F9;
@@ -292,6 +293,25 @@ td.nowrap{white-space:nowrap;}
 .juncao-item.sel{border-color:var(--brand);box-shadow:0 0 0 2px rgba(30,90,168,.12);}
 .juncao-item input.fig-in:disabled{background:#F3F6FA;color:var(--ink-soft);}
 
+/* ---------------- Ata da audiência ---------------- */
+.ata-doc{font-family:Georgia,"Times New Roman",serif;color:#15263D;font-size:13.5px;line-height:1.7;text-align:justify;max-width:820px;margin:0 auto;}
+.ata-doc p{margin:0 0 10px;text-indent:2.2em;}
+.ata-ent{text-align:center;font-weight:700;font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;}
+.ata-tit{text-align:center;font-size:16px;margin:12px 0 2px;letter-spacing:.03em;}
+.ata-sub{text-align:center;font-size:12px;color:var(--ink-soft);margin-bottom:14px;font-style:italic;}
+.ata-lista{margin:0 0 10px;padding-left:24px;}
+.ata-lista li{margin-bottom:6px;}
+.ata-tab{width:100%;border-collapse:collapse;margin:6px 0 12px;font-family:inherit;}
+.ata-tab th,.ata-tab td{border:1px solid #9AA6B6;padding:5px 7px;font-size:12px;text-align:left;vertical-align:top;white-space:normal;background:#fff;color:#15263D;position:static;}
+.ata-tab th{background:#EEF2F7;}
+.ata-vaziarow td{height:30px;}
+.ata-assin{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:48px;text-align:center;font-size:12px;}
+.ata-assin .linha{border-top:1px solid #15263D;margin-bottom:6px;}
+.ata-assin span{color:var(--ink-soft);}
+.ata-vazio{color:var(--red);font-style:italic;}
+.ata-quebra{border-top:2px dashed var(--line);margin:30px 0 20px;}
+@media print{ .ata-quebra{border:none;margin:0;break-before:page;} .print-target .ata-doc{max-width:none;} .print-target .ata-tab th{-webkit-print-color-adjust:exact;print-color-adjust:exact;} }
+
 /* ---------------- Checklist de preparação ---------------- */
 .checklist{display:flex;flex-direction:column;gap:6px;}
 .ck-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:#fff;font-size:12.5px;cursor:pointer;}
@@ -545,8 +565,8 @@ code.rule{display:block;white-space:pre;background:#0E1B2E;color:#D6E4F5;padding
     </div>
     <div class="subtitle" style="text-align:center;" id="loginEntidadeSub">Prestação de contas quadrimestral do SUS</div>
     <div class="field" style="margin-bottom:12px;">
-      <label>Usuário</label>
-      <input type="text" id="loginUsuario" placeholder="Ex.: joao" autocomplete="username" onkeydown="if(event.key==='Enter'){document.getElementById('loginSenha').focus();}">
+      <label>E-mail ou usuário</label>
+      <input type="text" id="loginUsuario" placeholder="Seu e-mail (ou o usuário de sempre)" autocomplete="username" onkeydown="if(event.key==='Enter'){document.getElementById('loginSenha').focus();}">
     </div>
     <div class="field" style="margin-bottom:6px;">
       <label>Senha</label>
@@ -606,6 +626,7 @@ code.rule{display:block;white-space:pre;background:#0E1B2E;color:#D6E4F5;padding
     <div class="side-footer">
       <div id="sidebarUsuarioLogado" style="font-weight:700;margin-bottom:4px;"></div>
       Seus dados ficam salvos automaticamente na nuvem (Firebase), inclusive as planilhas importadas. Use o mesmo código de acesso em qualquer computador para continuar de onde parou.
+      <div id="linkAlterarSenha" style="margin-top:6px;display:none;"><a href="#" onclick="alterarMinhaSenha();return false;" style="color:#fff;opacity:.85;">🔑 Alterar minha senha</a></div>
       <div style="margin-top:6px;"><a href="#" onclick="sairDoSistema();return false;" style="color:#fff;opacity:.85;">🚪 Sair do sistema</a></div>
       <div style="margin-top:4px;"><a href="#" onclick="trocarCodigoAcesso();return false;" style="color:#fff;opacity:.6;font-size:10.5px;">Trocar código de acesso (avançado)</a></div>
     </div>
@@ -806,6 +827,15 @@ function copiarRegras(){
   catch(e){ prompt('Copie a regra abaixo:', txt); }
 }
 function mostrarTelaRegras(){
+  // com as regras da fase 2, "acesso negado" para quem já entrou significa: sem permissão neste sistema
+  if(typeof fbAuthOk!=='undefined' && fbAuthOk && fbAuth.currentUser){
+    document.getElementById('loadingScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('loginErro').textContent = 'Seu login seguro está correto, mas não tem permissão para ver estes dados. Peça ao administrador para liberar seu acesso.';
+    fbAuth.signOut().catch(()=>{});
+    return;
+  }
   document.getElementById('loadingScreen').style.display = 'none';
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('configTitulo').textContent = '🔒 Falta liberar o banco de dados para este sistema';
@@ -835,7 +865,7 @@ let usersLoaded = false;
                do administrador.
    - comum:    vê, apresenta, imprime e exporta — não altera nada.
    ============================================================ */
-const OPERADOR_VIEWS_PERMITIDAS = ['area','indicadoresLanc','financeiro','auditorias','apresentacao'];
+const OPERADOR_VIEWS_PERMITIDAS = ['area','indicadoresLanc','financeiro','auditorias','apresentacao','ata'];
 function perfilAtual(){ return currentUser ? (currentUser.perfil || (currentUser.master ? 'master':'comum')) : null; }
 function isMaster(){ return perfilAtual()==='master'; }
 function viewBase(v){ return String(v||'').split(':')[0]; }
@@ -937,7 +967,12 @@ async function submitLogin(){
   const usuarioInput = (document.getElementById('loginUsuario').value||'').trim().toLowerCase();
   const senhaInput = document.getElementById('loginSenha').value||'';
   const erroEl = document.getElementById('loginErro');
-  if(!usuarioInput || !senhaInput){ erroEl.textContent = 'Informe usuário e senha.'; return; }
+  if(!usuarioInput || !senhaInput){ erroEl.textContent = 'Informe usuário (ou e-mail) e senha.'; return; }
+  // Login seguro: por e-mail, ou pelo usuário de sempre de quem já ativou (o sistema troca pelo e-mail dele)
+  if(usuarioInput.includes('@')) return loginComEmail(usuarioInput, senhaInput);
+  const jaSeguro = USERS_STATE.usuarios.find(x=>x.usuario===usuarioInput && x.uid && x.email);
+  if(fbAuthOk && jaSeguro) return loginComEmail(jaSeguro.email, senhaInput);
+  if(!usersLoaded){ erroEl.textContent = 'Entre com o seu e-mail e senha (login seguro).'; return; }
   const u = USERS_STATE.usuarios.find(x=>x.usuario===usuarioInput);
   if(u && u.bloqueado){ erroEl.textContent = 'Este usuário está bloqueado após várias tentativas incorretas. Fale com o administrador do sistema para desbloquear.'; return; }
   if(u && u.ativo===false){ erroEl.textContent = 'Este usuário está inativo. Fale com o administrador do sistema para reativar o acesso.'; return; }
@@ -957,13 +992,22 @@ async function submitLogin(){
   limparTentativasLogin(usuarioInput);
   erroEl.textContent = '';
   document.getElementById('loginSenha').value = '';
+  // login antigo aceito: pede o e-mail e ativa o login seguro (migração da fase 1)
+  if(fbAuthOk){ abrirAtivacaoSegura(u, senhaInput); return; }
   boasVindasPendente = true;
   iniciarSessaoUsuario(u);
 }
 function esqueciMinhaSenha(){
-  const usuarioInput = prompt('Informe o seu usuário (login) para solicitar uma nova senha ao administrador:');
+  const digitado = (document.getElementById('loginUsuario').value||'').trim().toLowerCase();
+  const usuarioInput = prompt('Informe o seu e-mail do login seguro (ou o seu usuário):', digitado);
   if(!usuarioInput) return;
   const usuario = usuarioInput.trim().toLowerCase();
+  // com login seguro, o próprio Firebase envia o link para criar uma senha nova
+  if(fbAuthOk){
+    const porUsuario = USERS_STATE.usuarios.find(x=>x.usuario===usuario && x.uid && x.email);
+    const email = usuario.includes('@') ? usuario : (porUsuario ? porUsuario.email : '');
+    if(email){ enviarRedefinicaoSenha(email); return; }
+  }
   const u = USERS_STATE.usuarios.find(x=>x.usuario===usuario);
   if(!u){ showToast('Usuário não encontrado.'); return; }
   const pedido = { id: uid(), usuario: u.usuario, nome: u.nome || u.usuario, perfil: perfilLabel(u.perfil), dataHora: new Date().toLocaleString('pt-BR') };
@@ -1071,7 +1115,9 @@ function sairDoSistema(){
   if(!confirm('Deseja sair do sistema?')) return;
   finalizarSessaoAtual();
   try{ sessionStorage.removeItem('aud_logged_user'); }catch(e){}
-  location.reload();
+  const recarregar = ()=>setTimeout(()=>location.reload(), 300);
+  // espera o registro de saída chegar à nuvem antes de desconectar o login seguro
+  if(fbAuthOk && fbAuth.currentUser) setTimeout(()=>fbAuth.signOut().then(recarregar, recarregar), 600); else recarregar();
 }
 
 /* ---------------- Código de acesso (sincroniza entre computadores) ---------------- */
@@ -1105,7 +1151,7 @@ function trocarCodigoAcesso(){
    Criação desta versão com nuvem: setembro/2026 (mês 1).
    ============================================================ */
 const APP_CRIACAO = { mes: 9, ano: 2026 };
-const APP_ALTERACAO = 10;
+const APP_ALTERACAO = 11;
 const APP_DATA = '2026-09-23';
 function appVersao(){
   const p = APP_DATA.split('-').map(Number);
@@ -1266,6 +1312,332 @@ function lerArquivoComoDataUrl(file){
 }
 
 /* ============================================================
+   LOGIN SEGURO — FIREBASE AUTHENTICATION (e-mail + senha)
+   ------------------------------------------------------------
+   Fase 1 (transição): o login antigo (usuário + senha) continua valendo só
+   para migrar — na primeira entrada o sistema pede o e-mail do usuário e
+   cria a conta dele no Firebase Authentication. Dali em diante o usuário
+   entra com e-mail + senha (ou com o mesmo login, que o sistema troca pelo
+   e-mail cadastrado).
+   Quem pode ler/gravar fica no documento "_acesso":
+     uids     → podem ver (todos os perfis ativos)
+     editores → podem gravar (operador e administrador)
+     admins   → podem mudar as permissões (administrador)
+   Fase 2: com todos migrados, o administrador publica as regras novas do
+   Firestore (tela Administração → Segurança), que exigem login seguro e
+   consultam o "_acesso". Aí o código de acesso deixa de ser suficiente.
+   ============================================================ */
+const AUTH_ACL_DOC = '_acesso';
+let fbAuth = null, fbAuthOk = false;
+try{ if(firebaseOk && firebase.auth){ fbAuth = firebase.auth(); fbAuthOk = true; } }catch(e){ console.error('Firebase Authentication indisponível:', e); }
+let ACL = null;
+let authProvedorDesligado = false;   // o método "E-mail/senha" ainda não foi ativado no console
+
+function msgAuth(e){
+  const c = (e && e.code) || '';
+  if(c==='auth/operation-not-allowed'){ authProvedorDesligado = true; return 'O login por e-mail ainda não foi ativado no Firebase. O administrador precisa ativar “E-mail/senha” em Authentication → Método de login (ver Administração → Segurança).'; }
+  if(c==='auth/invalid-email') return 'E-mail inválido.';
+  if(c==='auth/weak-password') return 'A senha precisa ter pelo menos 6 caracteres.';
+  if(c==='auth/email-already-in-use') return 'Este e-mail já tem um login seguro.';
+  if(c==='auth/user-disabled') return 'Este login foi desativado no Firebase.';
+  if(c==='auth/too-many-requests') return 'Muitas tentativas seguidas. Aguarde alguns minutos ou use “Esqueci minha senha”.';
+  if(c==='auth/network-request-failed') return 'Sem conexão com a internet.';
+  if(c==='auth/requires-recent-login') return 'Por segurança, saia e entre de novo antes de trocar a senha.';
+  if(['auth/wrong-password','auth/user-not-found','auth/invalid-credential','auth/invalid-login-credentials'].includes(c)) return 'E-mail ou senha inválidos.';
+  return 'Não foi possível concluir: ' + ((e && e.message) || e);
+}
+function emailValido(s){ return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(s||'').trim()); }
+
+/* ---------------- Permissões (documento _acesso) ---------------- */
+async function lerACL(){
+  try{
+    const d = await db.collection(FIRESTORE_COLLECTION).doc(AUTH_ACL_DOC).get();
+    ACL = d.exists ? Object.assign({ uids:[], editores:[], admins:[] }, d.data()) : null;
+  }catch(e){ console.warn('Não foi possível ler as permissões:', e); }
+  return ACL;
+}
+function aclAplicarUsuario(u){
+  if(!u || !u.uid) return;
+  ACL = ACL || { uids:[], editores:[], admins:[] };
+  ['uids','editores','admins'].forEach(k=>{ ACL[k] = (ACL[k]||[]).filter(x=>x!==u.uid); });
+  if(u.ativo!==false){
+    ACL.uids.push(u.uid);
+    if(u.perfil==='master' || u.perfil==='operador') ACL.editores.push(u.uid);
+    if(u.perfil==='master') ACL.admins.push(u.uid);
+  }
+}
+function aclRemoverUid(uid){ if(!ACL || !uid) return; ['uids','editores','admins'].forEach(k=>{ ACL[k] = (ACL[k]||[]).filter(x=>x!==uid); }); }
+async function gravarACL(){
+  if(!ACL) return;
+  ACL.atualizadoEm = new Date().toISOString();
+  ACL.atualizadoPor = currentUser ? currentUser.usuario : '';
+  await db.collection(FIRESTORE_COLLECTION).doc(AUTH_ACL_DOC).set(ACL);
+}
+/* Relê as permissões e aplica o perfil/situação atual de um (ou de todos os) usuário(s). */
+async function sincronizarACL(usuarios){
+  await lerACL();
+  (usuarios || USERS_STATE.usuarios).forEach(aclAplicarUsuario);
+  try{ await gravarACL(); return true; }
+  catch(e){ console.error(e); showToast('Não foi possível gravar as permissões: '+(erroPermissao(e)?'somente um administrador com login seguro pode alterá-las.':(e.message||e)),'error'); return false; }
+}
+
+/* ---------------- Contas no Firebase Authentication ---------------- */
+/* Cria a conta de OUTRA pessoa sem derrubar o login do administrador (instância secundária). */
+function authSecundario(){
+  let app; try{ app = firebase.app('secundario'); }catch(e){ app = firebase.initializeApp(firebaseConfig, 'secundario'); }
+  return app.auth();
+}
+async function criarContaAuth(email, senha){
+  const a = authSecundario();
+  try{ await a.setPersistence(firebase.auth.Auth.Persistence.NONE); }catch(e){}
+  const cred = await a.createUserWithEmailAndPassword(email, senha);
+  const uidNovo = cred.user.uid;
+  try{ await a.signOut(); }catch(e){}
+  return uidNovo;
+}
+async function loginComEmail(email, senha){
+  const erroEl = document.getElementById('loginErro');
+  if(!fbAuthOk){ erroEl.textContent = 'Login seguro indisponível — verifique a internet.'; return; }
+  erroEl.textContent = 'Entrando…';
+  try{ await fbAuth.signInWithEmailAndPassword(String(email).trim().toLowerCase(), senha); }
+  catch(e){ erroEl.textContent = msgAuth(e); return; }
+  erroEl.textContent = '';
+  document.getElementById('loginSenha').value = '';
+  boasVindasPendente = true;
+  await posLoginFirebase(fbAuth.currentUser);
+}
+/* Depois de entrar no Firebase: acha o cadastro do usuário (pelo uid ou e-mail) e abre o sistema. */
+async function posLoginFirebase(user){
+  const erroEl = document.getElementById('loginErro');
+  try{ await loadUsersState(); }
+  catch(e){
+    console.error(e);
+    await fbAuth.signOut().catch(()=>{});
+    document.getElementById('loadingScreen').style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'flex';
+    erroEl.textContent = erroPermissao(e) ? 'Seu login está correto, mas ainda não foi liberado neste sistema. Peça ao administrador para liberar seu acesso (Administração → Usuários).' : 'Sem conexão com a nuvem. Tente de novo.';
+    return;
+  }
+  const email = String(user.email||'').toLowerCase();
+  let u = USERS_STATE.usuarios.find(x=>x.uid===user.uid) || USERS_STATE.usuarios.find(x=>x.email && x.email.toLowerCase()===email);
+  if(!u){
+    await fbAuth.signOut().catch(()=>{});
+    document.getElementById('loadingScreen').style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'flex';
+    erroEl.textContent = `O e-mail ${email} não está cadastrado neste sistema. Peça ao administrador para cadastrá-lo em Usuários.`;
+    return;
+  }
+  if(u.ativo===false){
+    await fbAuth.signOut().catch(()=>{});
+    document.getElementById('loadingScreen').style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'flex';
+    erroEl.textContent = 'Este usuário está inativo. Fale com o administrador do sistema.';
+    return;
+  }
+  if(!u.uid){ u.uid = user.uid; u.email = email; u.authDesde = new Date().toISOString(); saveUsersState(true); sincronizarACL([u]).catch(()=>{}); }
+  u.bloqueado = false;
+  iniciarSessaoUsuario(u);
+}
+
+/* ---------------- Migração: ativar o login seguro na primeira entrada ---------------- */
+function abrirAtivacaoSegura(u, senhaAtual){
+  document.getElementById('loginScreen').style.display = 'none';
+  let box = document.getElementById('ativacaoSegura');
+  if(!box){ box = document.createElement('div'); box.id = 'ativacaoSegura'; document.body.appendChild(box); }
+  const curta = String(senhaAtual||'').length < 6;
+  box.style.cssText = 'position:fixed;inset:0;z-index:270;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(135deg,#0B2548 0%,#123E7A 45%,#1E5AA8 100%);overflow:auto;';
+  box.innerHTML = `
+    <div class="card" style="max-width:480px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25);border:none;">
+      <div style="text-align:center;margin-bottom:10px;"><div style="font-size:34px;">🔐</div><h2 style="margin:4px 0;">Ative o seu login seguro</h2>
+        <div class="muted" style="font-size:12.5px;">Olá, <b>${esc(u.nome||u.usuario)}</b>. Para proteger os dados de saúde, o sistema passa a usar login com <b>e-mail e senha</b> do Firebase. É só uma vez.</div></div>
+      <div class="field" style="margin-bottom:10px;"><label>Seu e-mail</label><input id="atvEmail" type="email" value="${esc(u.email||'')}" placeholder="nome@prefeitura.gov.br" autocomplete="email"></div>
+      ${curta ? `<div class="alerta-aviso" style="margin-bottom:10px;">A senha atual é curta demais para o login seguro (mínimo 6 caracteres). Crie uma senha nova.</div>` :
+        `<label class="check" style="margin-bottom:10px;"><input type="checkbox" id="atvManter" checked onchange="document.getElementById('atvNovas').style.display=this.checked?'none':'block'"> Manter a mesma senha de hoje</label>`}
+      <div id="atvNovas" style="display:${curta?'block':'none'};">
+        <div class="field" style="margin-bottom:10px;"><label>Nova senha (mínimo 6 caracteres)</label><input id="atvSenha" type="password" autocomplete="new-password"></div>
+        <div class="field" style="margin-bottom:10px;"><label>Repita a nova senha</label><input id="atvSenha2" type="password" autocomplete="new-password"></div>
+      </div>
+      <div id="atvErro" style="color:var(--red);font-size:12px;min-height:16px;margin-bottom:8px;"></div>
+      <button class="btn" id="atvBtn" style="width:100%;justify-content:center;" onclick="confirmarAtivacaoSegura('${u.id}')">🔐 Ativar login seguro e entrar</button>
+      <div style="text-align:center;margin-top:10px;"><a href="#" onclick="pularAtivacaoSegura('${u.id}');return false;" style="font-size:12px;">Agora não (entrar do jeito antigo)</a></div>
+      <div class="muted" style="font-size:11px;margin-top:10px;">Use um e-mail que você acessa: é por ele que você recupera a senha se esquecer. Depois de ativar, entre com o e-mail (ou com o mesmo usuário de sempre).</div>
+    </div>`;
+  box._senhaAtual = senhaAtual;
+  setTimeout(()=>document.getElementById('atvEmail').focus(), 50);
+}
+function fecharAtivacaoSegura(){ const b = document.getElementById('ativacaoSegura'); if(b){ b._senhaAtual = ''; b.remove(); } }
+function pularAtivacaoSegura(id){
+  const u = USERS_STATE.usuarios.find(x=>x.id===id); fecharAtivacaoSegura();
+  if(u){ boasVindasPendente = true; iniciarSessaoUsuario(u); setTimeout(()=>showToast('Lembre-se de ativar o login seguro — em breve o login antigo deixará de funcionar.','warning'), 2500); }
+}
+async function confirmarAtivacaoSegura(id){
+  const u = USERS_STATE.usuarios.find(x=>x.id===id); if(!u) return;
+  const box = document.getElementById('ativacaoSegura');
+  const erro = document.getElementById('atvErro');
+  const email = String(document.getElementById('atvEmail').value||'').trim().toLowerCase();
+  if(!emailValido(email)){ erro.textContent = 'Informe um e-mail válido.'; return; }
+  if(USERS_STATE.usuarios.some(x=>x.id!==u.id && x.email && x.email.toLowerCase()===email)){ erro.textContent = 'Este e-mail já está cadastrado para outro usuário do sistema.'; return; }
+  const manter = document.getElementById('atvManter') && document.getElementById('atvManter').checked;
+  let senha = box._senhaAtual;
+  if(!manter){
+    const s1 = document.getElementById('atvSenha').value, s2 = document.getElementById('atvSenha2').value;
+    if(s1.length < 6){ erro.textContent = 'A nova senha precisa ter pelo menos 6 caracteres.'; return; }
+    if(s1!==s2){ erro.textContent = 'As duas senhas não conferem.'; return; }
+    senha = s1;
+  }
+  const btn = document.getElementById('atvBtn'); btn.disabled = true; erro.textContent = 'Ativando…';
+  let cred;
+  try{ cred = await fbAuth.createUserWithEmailAndPassword(email, senha); }
+  catch(e){
+    if(e.code==='auth/email-already-in-use'){
+      try{ cred = await fbAuth.signInWithEmailAndPassword(email, senha); }
+      catch(e2){ erro.textContent = 'Este e-mail já tem um login seguro com outra senha. Entre com o e-mail e a senha dele, ou use “Esqueci minha senha”.'; btn.disabled = false; return; }
+    } else { erro.textContent = msgAuth(e); btn.disabled = false; return; }
+  }
+  u.uid = cred.user.uid; u.email = email; u.authDesde = new Date().toISOString();
+  if(!manter) u.senhaHash = await hashSenha(senha);
+  saveUsersState(true);
+  await sincronizarACL([u]);
+  fecharAtivacaoSegura();
+  boasVindasPendente = true;
+  iniciarSessaoUsuario(u);
+  setTimeout(()=>{ registrarAcao('Login seguro ativado'); showToast('Login seguro ativado! Da próxima vez, entre com '+email+'.','success'); }, 1500);
+}
+
+/* ---------------- Trocar a própria senha / esqueci a senha ---------------- */
+async function alterarMinhaSenha(){
+  if(!fbAuthOk || !fbAuth.currentUser){ showToast('Ative o login seguro para poder trocar a senha por aqui.','warning'); return; }
+  const s1 = prompt('Nova senha (mínimo 6 caracteres):'); if(s1===null) return;
+  if(s1.length<6){ showToast('A senha precisa ter pelo menos 6 caracteres.','warning'); return; }
+  const s2 = prompt('Repita a nova senha:'); if(s2===null) return;
+  if(s1!==s2){ showToast('As senhas não conferem.','warning'); return; }
+  try{
+    await fbAuth.currentUser.updatePassword(s1);
+    if(currentUser){ currentUser.senhaHash = await hashSenha(s1); saveUsersState(true); }
+    registrarAcao('Senha alterada');
+    showToast('Senha alterada.','success');
+  }catch(e){ showToast(msgAuth(e),'error'); }
+}
+async function enviarRedefinicaoSenha(email){
+  try{ await fbAuth.sendPasswordResetEmail(String(email).trim().toLowerCase()); showToast('Enviamos um e-mail para '+email+' com o link para criar uma nova senha. Veja também a caixa de spam.','success'); return true; }
+  catch(e){ showToast(msgAuth(e),'error'); return false; }
+}
+
+/* ---------------- Regras da fase 2 (entregues prontas para colar) ---------------- */
+const REGRAS_FASE2 =
+`rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /controle_exames_laboratoriais/{codigo} {
+      allow read, write: if codigo is string && codigo.size() >= 6;
+    }
+
+    match /cotacao_precos_jaborandi/{codigo} {
+      allow read, write: if codigo is string && codigo.size() >= 6;
+    }
+
+    // Audiências Públicas da Saúde: só com login seguro e permissão no documento _acesso
+    function acessoAudiencias() {
+      return get(/databases/$(database)/documents/${FIRESTORE_COLLECTION}/${AUTH_ACL_DOC}).data;
+    }
+    function membroAudiencias() {
+      return request.auth != null && request.auth.uid in acessoAudiencias().uids;
+    }
+    match /${FIRESTORE_COLLECTION}/${AUTH_ACL_DOC} {
+      allow get: if membroAudiencias();
+      allow update: if request.auth != null && request.auth.uid in resource.data.admins;
+    }
+    match /${FIRESTORE_COLLECTION}/${FIRESTORE_USERS_DOC} {
+      allow read, write: if membroAudiencias();
+    }
+    match /${FIRESTORE_COLLECTION}/{doc} {
+      allow read: if doc != '${AUTH_ACL_DOC}' && membroAudiencias();
+      allow write: if doc != '${AUTH_ACL_DOC}' && doc != '${FIRESTORE_USERS_DOC}'
+                   && request.auth != null && request.auth.uid in acessoAudiencias().editores;
+    }
+  }
+}`;
+function copiarRegrasFase2(){
+  try{ navigator.clipboard.writeText(REGRAS_FASE2).then(()=>showToast('Regras copiadas. Cole no console do Firebase (substituindo todo o texto) e clique em Publicar.','success')); }
+  catch(e){ prompt('Copie as regras abaixo:', REGRAS_FASE2); }
+}
+
+/* ---------------- Tela Administração → Segurança ---------------- */
+let aclCarregadaTela = false;
+function viewSeguranca(){
+  if(!isMaster()) return `<div class="card">Acesso restrito ao administrador do sistema.</div>`;
+  if(!aclCarregadaTela){ aclCarregadaTela = true; lerACL().then(()=>{ if(currentView==='seguranca') render(); }); }
+  const us = USERS_STATE.usuarios;
+  const ativos = us.filter(u=>u.ativo!==false);
+  const migrados = ativos.filter(u=>u.uid);
+  const faltam = ativos.filter(u=>!u.uid);
+  const logadoSeguro = fbAuthOk && fbAuth.currentUser && currentUser && currentUser.uid===fbAuth.currentUser.uid;
+  const papel = u => !u.uid ? '<span class="badge neutro">—</span>' : !ACL ? '<span class="badge neutro">…</span>' :
+    (ACL.admins||[]).includes(u.uid) ? '<span class="badge ok">administra</span>' : (ACL.editores||[]).includes(u.uid) ? '<span class="badge azul">vê e grava</span>' : (ACL.uids||[]).includes(u.uid) ? '<span class="badge neutro">só vê</span>' : '<span class="badge ruim">sem acesso</span>';
+  const pct = ativos.length ? Math.round(migrados.length/ativos.length*100) : 0;
+  return `
+    <div class="grid auto" style="margin-bottom:16px;">
+      <div class="stat" style="border-top-color:${logadoSeguro?'var(--green)':'var(--amber)'}"><div class="label">Você está usando</div><div class="value small">${logadoSeguro?'🔐 Login seguro':'Login antigo'}</div><div class="hint">${logadoSeguro?esc(fbAuth.currentUser.email):'ative ao entrar de novo'}</div></div>
+      <div class="stat"><div class="label">Usuários com login seguro</div><div class="value">${migrados.length} / ${ativos.length}</div><div class="progress" style="margin-top:8px;"><div style="width:${pct}%;background:${pct===100?'var(--green)':'var(--brand)'}"></div></div></div>
+      <div class="stat" style="border-top-color:${ACL?'var(--green)':'var(--amber)'}"><div class="label">Lista de permissões</div><div class="value small">${ACL?`${(ACL.uids||[]).length} liberado(s)`:'ainda não criada'}</div><div class="hint">${ACL&&ACL.atualizadoEm?'atualizada em '+new Date(ACL.atualizadoEm).toLocaleString('pt-BR'):'criada no 1º login seguro'}</div></div>
+    </div>
+    <div class="card">
+      <h2>🛡️ Como proteger os dados com o login seguro</h2>
+      <div class="subtitle">Hoje, quem souber o código de acesso consegue ler os dados direto no banco, sem passar pelo sistema. O login seguro fecha essa porta: só entra quem tem e-mail e senha cadastrados <b>e</b> foi liberado aqui.</div>
+      <ol style="font-size:13px;line-height:1.7;margin:0;padding-left:20px;">
+        <li><b>Ativar o login por e-mail no Firebase</b> (uma vez): console do Firebase → projeto <code>${esc(firebaseConfig.projectId)}</code> → <b>Authentication</b> → <b>Começar</b> → aba <b>Método de login</b> → <b>E-mail/senha</b> → ativar → <b>Salvar</b>.
+          ${authProvedorDesligado?'<div class="alerta-erro" style="margin-top:6px;">O Firebase respondeu que o login por e-mail ainda <b>não está ativado</b>. Faça este passo primeiro.</div>':''}</li>
+        <li><b>Cada usuário ativa o próprio login seguro</b> ao entrar com o usuário e a senha de sempre — o sistema pede o e-mail na hora. Você também pode criar o login de alguém em <b>Usuários → 🔐 criar login seguro</b>.</li>
+        <li><b>Quando todos estiverem ✔ na lista abaixo</b>, publique as regras novas (passo 3). ${faltam.length?`<b style="color:var(--red)">Ainda faltam ${faltam.length}: ${faltam.map(u=>esc(u.nome||u.usuario)).join(', ')}.</b> Se publicar antes, eles ficam sem acesso até você criar o login deles.`:'<b style="color:var(--green)">Todos os usuários ativos já têm login seguro.</b>'}</li>
+      </ol>
+    </div>
+    <div class="card">
+      <div class="flexrow" style="margin-bottom:8px;"><h2 style="margin:0;">👥 Situação de cada usuário</h2><button class="btn secondary small" onclick="sincronizarACL().then(ok=>{ if(ok){ showToast('Permissões atualizadas.','success'); render(); } })">🔄 Atualizar permissões</button></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Usuário</th><th>Nome</th><th>E-mail do login seguro</th><th>Perfil</th><th>Login seguro</th><th>Permissão no banco</th><th></th></tr></thead>
+        <tbody>${us.map(u=>`<tr>
+          <td><b>${esc(u.usuario)}</b></td><td>${esc(u.nome)||'—'}</td><td>${esc(u.uid?u.email:(u.email||''))||'—'}</td><td>${esc(perfilLabel(u.perfil))}</td>
+          <td>${u.ativo===false?'<span class="badge inativo">inativo</span>':u.uid?'<span class="badge ok">✔ ativo</span>':'<span class="badge ambar">pendente</span>'}</td>
+          <td>${papel(u)}</td>
+          <td class="nowrap">${!u.uid && u.ativo!==false?`<button class="btn ghost small" onclick="criarLoginSeguroPara('${u.id}')">🔐 criar login seguro</button>`:''}${u.uid?`<button class="btn ghost small" onclick="enviarRedefinicaoSenha('${escJs(u.email)}')">✉️ redefinir senha</button>`:''}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+    </div>
+    <div class="card">
+      <h2>📜 Passo 3 — Regras novas do Firestore</h2>
+      <div class="subtitle">No console do Firebase → <b>Firestore Database → Regras</b>: selecione todo o texto (Ctrl+A), apague, cole o texto abaixo e clique em <b>Publicar</b>. As regras do Controle de Exames e do Controle de Cotações estão incluídas <b>sem nenhuma mudança</b>. Se algo der errado, a versão anterior fica no histórico à esquerda e volta com um clique.</div>
+      ${faltam.length?`<div class="alerta-aviso">⚠️ Ainda há ${faltam.length} usuário(s) sem login seguro. Crie o login deles antes de publicar.</div>`:''}
+      <code class="rule">${esc(REGRAS_FASE2)}</code>
+      <div class="actions" style="margin-top:10px;"><button class="btn" onclick="copiarRegrasFase2()">📋 Copiar regras</button></div>
+    </div>`;
+}
+/* Administrador cria o login seguro de um usuário (sem precisar que ele entre antes). */
+async function criarLoginSeguroPara(id){
+  if(!isMaster()) return;
+  const u = USERS_STATE.usuarios.find(x=>x.id===id); if(!u) return;
+  const email = (prompt(`E-mail do login seguro de ${u.nome||u.usuario}:`, u.email||'')||'').trim().toLowerCase();
+  if(!email) return;
+  if(!emailValido(email)){ showToast('E-mail inválido.','warning'); return; }
+  if(USERS_STATE.usuarios.some(x=>x.id!==u.id && x.email && x.email.toLowerCase()===email)){ showToast('Este e-mail já está cadastrado para outro usuário.','warning'); return; }
+  const senha = prompt('Senha provisória (mínimo 6 caracteres) — informe ao usuário, que poderá trocá-la depois em “🔑 Alterar minha senha”:');
+  if(senha===null) return;
+  if(senha.length<6){ showToast('A senha precisa ter pelo menos 6 caracteres.','warning'); return; }
+  try{
+    u.uid = await criarContaAuth(email, senha);
+  }catch(e){
+    showToast(e.code==='auth/email-already-in-use' ? 'Este e-mail já tem login seguro. Cadastre o e-mail no usuário (✏️ editar) e peça para ele entrar com o e-mail e a senha dele — o sistema vincula sozinho.' : msgAuth(e), 'error');
+    return;
+  }
+  u.email = email; u.authDesde = new Date().toISOString(); u.senhaHash = await hashSenha(senha);
+  saveUsersState(true);
+  await sincronizarACL([u]);
+  registrarAcao('Login seguro criado para '+u.usuario);
+  render();
+  showToast(`Login seguro criado para ${u.nome||u.usuario}: ${email}.`,'success');
+}
+
+/* ============================================================
    ESTADO DA APLICAÇÃO (dados salvos na nuvem, por código de acesso)
    As linhas das planilhas e as imagens NÃO ficam aqui: ficam em documentos
    próprios (ver "blobs" acima). Aqui fica só o índice e os cadastros.
@@ -1280,6 +1652,7 @@ let STATE = {
   areas: null,             // {id, nome, icone, cor, descricao, palavrasChave:[], contexto, ativo}
   bases: [],               // índice das planilhas importadas (as linhas ficam nos blobs)
   figuras: [],             // imagens por área/competência: {id, areaId, competenciaId, img, legenda, fonte, incluir, ordem}
+  atas: {},                // ata da audiência por competência: {compId: {data, local, presentes[], perguntas[], encaminhamentos[], ...}}
   indicadores: null,       // catálogo: {id, areaId, nome, unidade, meta, polaridade, fonte, descricao, ativo}
   lancamentos: {},         // {competenciaId: {indicadorId: {valor, obs, por, em}}}
   financeiro: {},          // {competenciaId: {...}}
@@ -1443,11 +1816,13 @@ function garantirModulosNovos(){
   if(!STATE.lancamentos || typeof STATE.lancamentos!=='object') STATE.lancamentos = {};
   if(!STATE.financeiro || typeof STATE.financeiro!=='object') STATE.financeiro = {};
   if(!Array.isArray(STATE.auditorias)) STATE.auditorias = [];
+  if(!STATE.atas || typeof STATE.atas!=="object") STATE.atas = {};
+  Object.values(STATE.atas).forEach(a=>{ ["presentes","perguntas","encaminhamentos"].forEach(k=>{ if(!Array.isArray(a[k])) a[k] = []; }); a.encaminhamentos.forEach(e=>{ if(!e.situacao) e.situacao = "Pendente"; }); });
   if(!STATE.semAuditoria || typeof STATE.semAuditoria!=='object') STATE.semAuditoria = {};
   if(!STATE.imagens || typeof STATE.imagens!=='object') STATE.imagens = {};
   if(!STATE.apresentacao || typeof STATE.apresentacao!=='object') STATE.apresentacao = {};
   const ap = STATE.apresentacao;
-  const apPadrao = { capa:true, baseLegal:true, pauta:true, areas:true, figuras:true, indicadores:true, relQuadrimestre:false, relEvolucao:false, relEvolucaoGraficos:false, financeiro:true, auditorias:true, encerramento:true,
+  const apPadrao = { capa:true, baseLegal:true, pauta:true, areas:true, figuras:true, indicadores:true, relQuadrimestre:false, relEvolucao:false, encaminhamentos:true, relEvolucaoGraficos:false, financeiro:true, auditorias:true, encerramento:true,
                      interpretacao:true, tabelas:false, graficosPorBase:4, textoEncerramento:'Obrigado!', contato:'', areasIncluidas:{} };
   Object.keys(apPadrao).forEach(k=>{ if(ap[k]===undefined) ap[k] = JSON.parse(JSON.stringify(apPadrao[k])); });
   // Competências: se não houver nenhuma, gera os três quadrimestres do ano e
@@ -1687,8 +2062,9 @@ function excluirCompetencia(id){
   const nLanc = Object.keys(STATE.lancamentos[id]||{}).length;
   const nAud = STATE.auditorias.filter(a=>a.competenciaId===id).length;
   const temFin = !!STATE.financeiro[id];
-  if(nBases || nFig || nLanc || nAud || temFin){
-    alert(`A competência "${c.rotulo}" já tem dados lançados (${nBases} planilha(s), ${nFig} imagem(ns), ${nLanc} indicador(es), ${nAud} auditoria(s)${temFin?', aplicação em saúde':''}).\n\nPara não perder nada, ela não pode ser excluída. Remova esses dados primeiro, se realmente quiser excluí-la.`);
+  const temAta = !!(STATE.atas && STATE.atas[id]);
+  if(nBases || nFig || nLanc || nAud || temFin || temAta){
+    alert(`A competência "${c.rotulo}" já tem dados lançados (${nBases} planilha(s), ${nFig} imagem(ns), ${nLanc} indicador(es), ${nAud} auditoria(s)${temFin?', aplicação em saúde':''}${temAta?', ata da audiência':''}).\n\nPara não perder nada, ela não pode ser excluída. Remova esses dados primeiro, se realmente quiser excluí-la.`);
     return;
   }
   if(!confirm(`Excluir a competência "${c.rotulo}"?`)) return;
@@ -3965,6 +4341,346 @@ function resumoJuncaoHTML(b){
 }
 
 /* ============================================================
+   ATA DA AUDIÊNCIA PÚBLICA
+   Por competência: dados da sessão, presentes (lista de presença),
+   perguntas/manifestações da população com as respostas, encaminhamentos
+   (responsável, prazo, situação) e considerações finais. Gera o texto
+   formal da ata ("Aos vinte e três dias do mês de…"), imprime no padrão dos
+   relatórios, exporta para Word e imprime a lista de presença para assinar.
+   Encaminhamentos pendentes de audiências anteriores ficam visíveis para
+   acompanhamento e podem entrar na apresentação ("retorno à população").
+   ============================================================ */
+const SEGMENTOS_ATA = ['Poder Executivo / Gestão','Poder Legislativo','Conselho Municipal de Saúde','Usuários do SUS','Trabalhadores da saúde','Prestadores de serviço','Ministério Público / Controle','Imprensa','Outros'];
+const SITUACOES_ENC = ['Pendente','Em andamento','Concluído'];
+const MESES_EXTENSO = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+let editingPerguntaId = null, editingEncId = null;
+
+function numeroPorExtenso(n){
+  n = Math.floor(Number(n)||0);
+  const u = ['zero','um','dois','três','quatro','cinco','seis','sete','oito','nove','dez','onze','doze','treze','catorze','quinze','dezesseis','dezessete','dezoito','dezenove'];
+  const d = ['','','vinte','trinta','quarenta','cinquenta','sessenta','setenta','oitenta','noventa'];
+  const c = ['','cento','duzentos','trezentos','quatrocentos','quinhentos','seiscentos','setecentos','oitocentos','novecentos'];
+  if(n<20) return u[n];
+  if(n<100) return d[Math.floor(n/10)] + (n%10 ? ' e '+u[n%10] : '');
+  if(n===100) return 'cem';
+  if(n<1000) return c[Math.floor(n/100)] + (n%100 ? ' e '+numeroPorExtenso(n%100) : '');
+  const m = Math.floor(n/1000), r = n%1000;
+  const mil = m===1 ? 'mil' : numeroPorExtenso(m)+' mil';
+  if(!r) return mil;
+  return mil + ((r<100 || r%100===0) ? ' e ' : ' ') + numeroPorExtenso(r);
+}
+function dataPorExtenso(iso){
+  const d = isoParaData(iso); if(!d) return '';
+  const dia = d.getDate();
+  return `${dia===1?'Ao primeiro dia':'Aos '+numeroPorExtenso(dia)+' dias'} do mês de ${MESES_EXTENSO[d.getMonth()]} do ano de ${numeroPorExtenso(d.getFullYear())}`;
+}
+function horaPorExtenso(hhmm){
+  const m = String(hhmm||'').match(/^(\d{1,2}):(\d{2})/); if(!m) return '';
+  const h = Number(m[1]), mi = Number(m[2]);
+  const hs = h===1 ? 'uma hora' : h===2 ? 'duas horas' : (h===21 ? 'vinte e uma horas' : h===22 ? 'vinte e duas horas' : numeroPorExtenso(h)+' horas');
+  return hs + (mi ? ' e '+numeroPorExtenso(mi)+(mi===1?' minuto':' minutos') : '');
+}
+function novaAta(c){
+  const e = STATE.entidade || {};
+  return { data: c.dataAudiencia||'', horaInicio: c.horaAudiencia||'', horaFim:'', local: c.localAudiencia||'', modalidade:'Presencial',
+           presidente: e.secretario||'', cargoPresidente: e.cargoSecretario||'Secretário(a) Municipal de Saúde', secretario:'', cargoSecretario:'',
+           abertura:'', consideracoes:'', presentes:[], perguntas:[], encaminhamentos:[], finalizada:false };
+}
+function ataDe(compId, criar){
+  if(!STATE.atas[compId] && criar){ const c = getComp(compId); STATE.atas[compId] = novaAta(c); }
+  return STATE.atas[compId] || null;
+}
+function setAta(campo, valor){
+  if(semPermissao('ata')){ render(); return; }
+  const c = compSel(); const a = ataDe(c.id, true);
+  a[campo] = typeof valor==='string' ? valor.trim() : valor;
+  a.atualizadoEm = new Date().toISOString(); a.atualizadoPor = currentUser ? currentUser.usuario : '';
+  saveState(false);
+  const pv = document.getElementById('ataPrint'); if(pv) pv.innerHTML = ataDocumentoHTML(c, a, false);
+}
+
+/* ---------------- Presentes ---------------- */
+function adicionarPresente(){
+  if(semPermissao('ata')) return;
+  const val = id => (document.getElementById(id)?.value || '').trim();
+  const nome = val('prNome'); if(!nome){ showToast('Informe o nome.','warning'); return; }
+  const a = ataDe(compSel().id, true);
+  if(a.presentes.some(p=>normTxt(p.nome)===normTxt(nome)) && !confirm(`"${nome}" já está na lista. Acrescentar de novo?`)) return;
+  a.presentes.push({ id: uid(), nome, cargo: val('prCargo'), segmento: val('prSeg'), instituicao: val('prInst') });
+  saveState(false); render();
+  setTimeout(()=>document.getElementById('prNome')?.focus(), 30);
+}
+function removerPresente(id){ if(semPermissao('ata')) return; const a = ataDe(compSel().id); if(!a) return; a.presentes = a.presentes.filter(p=>p.id!==id); saveState(false); render(); }
+async function importarPresentes(ev){
+  if(semPermissao('ata')){ ev.target.value=''; return; }
+  const f = ev.target.files[0]; ev.target.value = ''; if(!f) return;
+  try{
+    const t = (await lerArquivoParaTabelas(f))[0];
+    if(!t){ showToast('Não encontrei uma tabela nesse arquivo.','warning'); return; }
+    const acha = re => t.colunas.findIndex(c=>re.test(normTxt(c)));
+    let iNome = acha(/nome|participante|presente/); if(iNome<0) iNome = 0;
+    const iCargo = acha(/cargo|funcao|ocupacao/), iSeg = acha(/segmento|categoria|representa/), iInst = acha(/institui|entidade|orgao|secretaria|empresa/);
+    const a = ataDe(compSel().id, true); let n = 0;
+    t.linhas.forEach(r=>{
+      const nome = String(r[iNome]||'').trim(); if(!nome || /^total/i.test(nome)) return;
+      if(a.presentes.some(p=>normTxt(p.nome)===normTxt(nome))) return;
+      const seg = iSeg>=0 ? String(r[iSeg]||'').trim() : '';
+      a.presentes.push({ id: uid(), nome, cargo: iCargo>=0 ? String(r[iCargo]||'').trim() : '', segmento: SEGMENTOS_ATA.find(s=>normTxt(s).includes(normTxt(seg)) && seg) || seg, instituicao: iInst>=0 ? String(r[iInst]||'').trim() : '' });
+      n++;
+    });
+    saveState(false); render(); showToast(`${n} presente(s) importado(s).`, n?'success':'warning');
+  }catch(e){ showToast('Não foi possível ler o arquivo: '+(e.message||e),'error'); }
+}
+function copiarPresentesAnterior(){
+  if(semPermissao('ata')) return;
+  const c = compSel(); const ant = compsOrdenadas().filter(x=>x.id!==c.id && STATE.atas[x.id] && STATE.atas[x.id].presentes.length).pop();
+  if(!ant){ showToast('Nenhuma audiência anterior com lista de presença.','warning'); return; }
+  const a = ataDe(c.id, true); let n = 0;
+  STATE.atas[ant.id].presentes.forEach(p=>{ if(!a.presentes.some(x=>normTxt(x.nome)===normTxt(p.nome))){ a.presentes.push(Object.assign({}, p, { id: uid() })); n++; } });
+  saveState(false); render(); showToast(`${n} nome(s) copiado(s) da ata do ${ant.rotulo}. Retire quem não compareceu.`, 'success');
+}
+
+/* ---------------- Perguntas e manifestações ---------------- */
+function salvarPergunta(){
+  if(semPermissao('ata')) return;
+  const val = id => (document.getElementById(id)?.value || '').trim();
+  const pergunta = val('pgTexto'); if(!pergunta){ showToast('Escreva a pergunta ou manifestação.','warning'); return; }
+  const a = ataDe(compSel().id, true);
+  const dados = { autor: val('pgAutor'), segmento: val('pgSeg'), pergunta, resposta: val('pgResp'), respondidoPor: val('pgQuem') };
+  if(editingPerguntaId){ Object.assign(a.perguntas.find(p=>p.id===editingPerguntaId)||{}, dados); editingPerguntaId = null; }
+  else a.perguntas.push(Object.assign({ id: uid() }, dados));
+  saveState(false); render();
+}
+function removerPergunta(id){ if(semPermissao('ata')) return; const a = ataDe(compSel().id); if(!a || !confirm('Excluir esta pergunta?')) return; a.perguntas = a.perguntas.filter(p=>p.id!==id); saveState(false); render(); }
+
+/* ---------------- Encaminhamentos ---------------- */
+function salvarEncaminhamento(){
+  if(semPermissao('ata')) return;
+  const val = id => (document.getElementById(id)?.value || '').trim();
+  const descricao = val('enDesc'); if(!descricao){ showToast('Descreva o encaminhamento.','warning'); return; }
+  const a = ataDe(compSel().id, true);
+  const dados = { descricao, responsavel: val('enResp'), prazo: val('enPrazo'), situacao: val('enSit') || 'Pendente', obs: val('enObs') };
+  if(editingEncId){ Object.assign(a.encaminhamentos.find(p=>p.id===editingEncId)||{}, dados); editingEncId = null; }
+  else a.encaminhamentos.push(Object.assign({ id: uid() }, dados));
+  saveState(false); render();
+}
+function setSituacaoEnc(compId, id, situacao){
+  if(semPermissao('ata')){ render(); return; }
+  const a = STATE.atas[compId]; const e = a && a.encaminhamentos.find(x=>x.id===id); if(!e) return;
+  e.situacao = situacao; e.atualizadoEm = new Date().toISOString();
+  registrarAcao(`Encaminhamento "${e.descricao.slice(0,40)}": ${situacao}`);
+  saveState(false); render();
+}
+function removerEncaminhamento(id){ if(semPermissao('ata')) return; const a = ataDe(compSel().id); if(!a || !confirm('Excluir este encaminhamento?')) return; a.encaminhamentos = a.encaminhamentos.filter(p=>p.id!==id); saveState(false); render(); }
+/* Encaminhamentos de audiências anteriores que ainda não foram concluídos. */
+function encaminhamentosPendentesAnteriores(c){
+  const ord = compsOrdenadas(); const i = ord.findIndex(x=>x.id===c.id);
+  const lista = [];
+  ord.slice(0, Math.max(0,i)).forEach(x=>{ const a = STATE.atas[x.id]; if(!a) return; a.encaminhamentos.forEach(e=>{ if(e.situacao!=='Concluído') lista.push({ comp:x, e }); }); });
+  return lista;
+}
+function encaminhamentosDaAnterior(c){
+  const cAnt = compAnterior(c); const a = cAnt && STATE.atas[cAnt.id];
+  return a ? a.encaminhamentos.map(e=>({ comp:cAnt, e })) : [];
+}
+function prazoVencido(e){ return e.prazo && e.situacao!=='Concluído' && e.prazo < hojeISO(); }
+function badgeSituacaoEnc(e){
+  if(e.situacao==='Concluído') return '<span class="badge ok">✔ Concluído</span>';
+  if(prazoVencido(e)) return `<span class="badge ruim">⛔ ${esc(e.situacao)} — prazo vencido</span>`;
+  return e.situacao==='Em andamento' ? '<span class="badge azul">Em andamento</span>' : '<span class="badge ambar">Pendente</span>';
+}
+
+/* ---------------- Texto da ata ---------------- */
+function resumoDadosApresentados(c){
+  const partes = [];
+  const areas = areasAtivas().filter(a=>basesDe(a.id,c.id).length || figurasDe(a.id,c.id).length).map(a=>a.nome);
+  if(areas.length) partes.push(`foram apresentados os dados de oferta e produção de serviços das áreas de ${areas.join(', ').replace(/, ([^,]*)$/,' e $1')}`);
+  const f = finDe(c.id); const pct = percentualAplicado(f);
+  if(pct!==null) partes.push(`informou-se que o Município aplicou ${fmtPct(pct,2)} da receita de impostos e transferências constitucionais em ações e serviços públicos de saúde, ${pct>=minimoLegal(f)?'cumprindo o':'abaixo do'} mínimo de ${fmtPct(minimoLegal(f),0)} previsto na LC 141/2012`);
+  const r = resumoIndicadores(c.id);
+  if(r.lancados) partes.push(`dos ${r.lancados} indicadores de saúde apresentados, ${r.ok} atingiram a meta${r.nao?` e ${r.nao} ficaram abaixo dela`:''}`);
+  const aud = auditoriasDe(c.id);
+  partes.push(aud.length ? `foram relatadas ${aud.length} auditoria(s)/fiscalização(ões) realizadas ou em andamento no período` : STATE.semAuditoria[c.id] ? 'informou-se que não houve auditorias no período' : '');
+  const p = partes.filter(Boolean);
+  if(!p.length) return '';
+  return 'Na apresentação, ' + p.join('; ') + '.';
+}
+function ataDocumentoHTML(c, a, paraWord){
+  const e = STATE.entidade || {};
+  const quando = a.data ? dataPorExtenso(a.data) : '<span class="ata-vazio">[data da audiência]</span>';
+  const hora = a.horaInicio ? `, às ${horaPorExtenso(a.horaInicio)}` : '';
+  const local = a.local ? `, no(a) ${esc(a.local)}` : '';
+  const modal = a.modalidade && a.modalidade!=='Presencial' ? ` (modalidade ${esc(a.modalidade.toLowerCase())})` : '';
+  const pres = a.presidente ? `sob a presidência de ${esc(a.presidente)}${a.cargoPresidente?', '+esc(a.cargoPresidente):''}` : 'sob a presidência do(a) gestor(a) municipal de saúde';
+  const secr = a.secretario ? `, secretariada por ${esc(a.secretario)}${a.cargoSecretario?', '+esc(a.cargoSecretario):''}` : '';
+  const nPres = a.presentes.length;
+  const perg = a.perguntas;
+  const enc = a.encaminhamentos;
+  const retorno = encaminhamentosDaAnterior(c);
+  const quebra = paraWord ? '<br style="page-break-before:always" clear="all">' : '<div class="ata-quebra"></div>';
+  return `
+    <div class="ata-doc">
+      ${paraWord ? '' : reportBrandRowHTML()}
+      <div class="ata-ent">${esc((e.nome||entidadeNome()).toUpperCase())}${e.secretaria?'<br>'+esc(e.secretaria):''}</div>
+      <h2 class="ata-tit">ATA DA AUDIÊNCIA PÚBLICA DE PRESTAÇÃO DE CONTAS DA SAÚDE</h2>
+      <div class="ata-sub">${esc(c.rotulo)} — ${esc(c.textoPeriodo||'')}</div>
+      <p>${quando}${hora}${local}${modal}, realizou-se a Audiência Pública de prestação de contas da Saúde referente ao <b>${esc(c.rotulo)}</b>, em cumprimento ao art. 36 da Lei Complementar nº 141, de 13 de janeiro de 2012, ${pres}${secr}, com a presença de ${nPres ? numeroPorExtenso(nPres)+' ('+nPres+') participante'+(nPres>1?'s':'')+', conforme lista de presença anexa' : 'participantes conforme lista de presença anexa'}.</p>
+      ${a.abertura ? `<p>${esc(a.abertura).replace(/\n/g,'<br>')}</p>` : ''}
+      <p><b>Pauta:</b> 1) apresentação do Relatório Detalhado do Quadrimestre Anterior — montante e fonte dos recursos aplicados, auditorias realizadas ou em andamento, e oferta e produção de serviços públicos na rede assistencial, cotejados com os indicadores de saúde; ${retorno.length?'2) retorno dos encaminhamentos da audiência anterior; 3)':'2)'} perguntas e manifestações dos presentes; ${retorno.length?'4)':'3)'} encaminhamentos.</p>
+      ${resumoDadosApresentados(c) ? `<p>${esc(resumoDadosApresentados(c))}</p>` : ''}
+      ${retorno.length ? `<p><b>Retorno dos encaminhamentos da audiência anterior (${esc(retorno[0].comp.rotulo)}):</b> ${retorno.map(x=>`${esc(x.e.descricao)} — ${esc(x.e.situacao)}${x.e.responsavel?' (responsável: '+esc(x.e.responsavel)+')':''}`).join('; ')}.</p>` : ''}
+      <p><b>Perguntas e manifestações.</b> ${perg.length ? 'Aberta a palavra aos presentes, houve as seguintes manifestações:' : 'Aberta a palavra aos presentes, não houve perguntas ou manifestações.'}</p>
+      ${perg.length ? `<ol class="ata-lista">${perg.map(p=>`<li>${p.autor?`<b>${esc(p.autor)}</b>${p.segmento?' ('+esc(p.segmento)+')':''}`:'Participante'} manifestou-se: “${esc(p.pergunta)}”.${p.resposta?` ${p.respondidoPor?esc(p.respondidoPor):'A mesa'} respondeu: “${esc(p.resposta)}”.`:' A questão ficou registrada para resposta posterior.'}</li>`).join('')}</ol>` : ''}
+      <p><b>Encaminhamentos.</b> ${enc.length ? 'Ficaram definidos os seguintes encaminhamentos:' : 'Não houve encaminhamentos.'}</p>
+      ${enc.length ? `<table class="ata-tab"><thead><tr><th>Nº</th><th>Encaminhamento</th><th>Responsável</th><th>Prazo</th></tr></thead><tbody>${enc.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.descricao)}${x.obs?`<br><i>${esc(x.obs)}</i>`:''}</td><td>${esc(x.responsavel)||'—'}</td><td>${x.prazo?fmtDateBR(x.prazo):'—'}</td></tr>`).join('')}</tbody></table>` : ''}
+      ${a.consideracoes ? `<p><b>Considerações finais.</b> ${esc(a.consideracoes).replace(/\n/g,'<br>')}</p>` : ''}
+      <p>Nada mais havendo a tratar, ${a.presidente?esc(a.presidente):'o(a) presidente'} agradeceu a presença de todos e declarou encerrada a audiência${a.horaFim?` às ${horaPorExtenso(a.horaFim)}`:''}. ${a.secretario?`Eu, ${esc(a.secretario)}${a.cargoSecretario?', '+esc(a.cargoSecretario):''}, lavrei`:'Foi lavrada'} a presente ata, que, lida e achada conforme, vai assinada ${a.secretario?'por mim e ':''}pelo(a) presidente, acompanhada da lista de presença.</p>
+      <div class="ata-assin">
+        <div><div class="linha"></div><b>${esc(a.presidente||'')}</b><br><span>${esc(a.cargoPresidente||'Presidente da audiência')}</span></div>
+        <div><div class="linha"></div><b>${esc(a.secretario||'')}</b><br><span>${esc(a.cargoSecretario||'Secretário(a) da audiência')}</span></div>
+      </div>
+      ${quebra}
+      ${listaPresencaHTML(c, a, false, paraWord)}
+    </div>`;
+}
+function listaPresencaHTML(c, a, emBranco, paraWord){
+  const linhas = emBranco ? [] : a.presentes;
+  const vazias = emBranco ? 30 : Math.max(0, 5 - linhas.length);
+  return `
+    <div class="ata-lp">
+      ${paraWord || !emBranco ? '' : reportBrandRowHTML()}
+      <h3 class="ata-tit" style="font-size:15px;">LISTA DE PRESENÇA</h3>
+      <div class="ata-sub">Audiência Pública de prestação de contas da Saúde — ${esc(c.rotulo)}${a.data?' — '+fmtDateBR(a.data):''}${a.local?' — '+esc(a.local):''}</div>
+      <table class="ata-tab"><thead><tr><th style="width:34px;">Nº</th><th>Nome</th><th>Cargo / função</th><th>Segmento / instituição</th><th style="width:30%;">Assinatura</th></tr></thead>
+        <tbody>${linhas.map((p,i)=>`<tr><td>${i+1}</td><td>${esc(p.nome)}</td><td>${esc(p.cargo)}</td><td>${esc([p.segmento,p.instituicao].filter(Boolean).join(' — '))}</td><td></td></tr>`).join('')}
+        ${Array.from({length:vazias},(_,i)=>`<tr class="ata-vaziarow"><td>${linhas.length+i+1}</td><td></td><td></td><td></td><td></td></tr>`).join('')}</tbody></table>
+    </div>`;
+}
+function imprimirListaPresenca(emBranco){
+  const c = compSel(); const a = ataDe(c.id) || novaAta(c);
+  let box = document.getElementById('listaPresencaPrint');
+  if(!box){ box = document.createElement('div'); box.id = 'listaPresencaPrint'; box.style.cssText = 'position:absolute;left:-99999px;top:0;width:1000px;'; document.body.appendChild(box); }
+  box.innerHTML = `<div class="ata-doc">${listaPresencaHTML(c, a, emBranco, false)}</div>`;
+  printReportOrientado('listaPresencaPrint', 'portrait');
+}
+function baixarAtaWord(){
+  const c = compSel(); const a = ataDe(c.id) || novaAta(c);
+  const estilo = `body{font-family:"Times New Roman",serif;font-size:12pt;line-height:1.5;text-align:justify;} .ata-ent{text-align:center;font-weight:bold;font-size:11pt;} .ata-tit{text-align:center;font-size:14pt;margin:14pt 0 4pt;} .ata-sub{text-align:center;font-size:10pt;margin-bottom:14pt;} table{border-collapse:collapse;width:100%;} th,td{border:1px solid #000;padding:4pt;font-size:10pt;text-align:left;vertical-align:top;} .ata-vaziarow td{height:22pt;} .ata-assin{margin-top:40pt;} .ata-assin div{display:inline-block;width:45%;text-align:center;margin-right:4%;} .ata-assin .linha{border-top:1px solid #000;margin-bottom:4pt;height:1px;} .ata-vazio{color:#c00;}`;
+  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>Ata ${esc(c.rotulo)}</title><style>${estilo}</style></head><body>${ataDocumentoHTML(c, a, true)}</body></html>`;
+  baixarArquivo('﻿'+html, `Ata_Audiencia_${nomeArquivoSeguro(c.rotulo)}.doc`, 'application/msword');
+  registrarComando('⭳ Ata exportada para Word');
+}
+function finalizarAta(v){
+  if(semPermissao('ata')) return;
+  const c = compSel(); const a = ataDe(c.id, true);
+  if(v && !a.data){ showToast('Informe a data da audiência antes de finalizar a ata.','warning'); return; }
+  a.finalizada = !!v;
+  if(v){ c.situacao = 'realizada'; if(!c.dataAudiencia) c.dataAudiencia = a.data; if(!c.horaAudiencia) c.horaAudiencia = a.horaInicio; if(!c.localAudiencia) c.localAudiencia = a.local; }
+  registrarAcao((v?'Ata finalizada: ':'Ata reaberta: ')+c.rotulo);
+  saveState(true); render();
+  showToast(v ? 'Ata finalizada e audiência marcada como realizada.' : 'Ata reaberta para edição.', 'success');
+}
+
+/* ---------------- Tela ---------------- */
+function viewAta(){
+  const c = compSel(); const pode = podeEditar('ata');
+  const a = ataDe(c.id) || novaAta(c);
+  const bloqueada = a.finalizada;
+  const ed = pode && !bloqueada;
+  const inp = (campo, rot, tipo, cls, ph) => `<div class="field ${cls||''}"><label>${rot}</label><input ${tipo?`type="${tipo}"`:''} value="${esc(a[campo]||'')}" placeholder="${esc(ph||'')}" ${ed?'':'disabled'} onchange="setAta('${campo}', this.value)"></div>`;
+  const pg = editingPerguntaId ? a.perguntas.find(p=>p.id===editingPerguntaId) : null;
+  const en = editingEncId ? a.encaminhamentos.find(p=>p.id===editingEncId) : null;
+  const pendentes = encaminhamentosPendentesAnteriores(c);
+  const segOpts = sel => `<option value="">—</option>`+SEGMENTOS_ATA.map(s=>`<option ${sel===s?'selected':''}>${esc(s)}</option>`).join('');
+  return `
+    <div class="card">
+      <div class="flexrow">
+        <div><h2 style="margin:0;">🖋️ Ata da audiência — ${esc(c.rotulo)} ${bloqueada?'<span class="badge ok">✔ finalizada</span>':'<span class="badge ambar">em elaboração</span>'}</h2>
+          <div class="subtitle" style="margin:4px 0 0;">Registre a sessão durante ou logo depois da audiência. O texto formal da ata é montado sozinho — veja a prévia no fim da página.</div></div>
+        <div class="actions">
+          <button class="btn" onclick="printReportAsk('ataPrint','Ata — ${escJs(c.rotulo)}')">🖨️ Imprimir ata</button>
+          <button class="btn secondary" onclick="baixarAtaWord()">⭳ Word</button>
+          <button class="btn secondary" onclick="imprimirListaPresenca(true)" title="Folha com linhas numeradas para os presentes assinarem">🖨️ Lista de presença em branco</button>
+          ${pode ? (bloqueada ? `<button class="btn ghost" onclick="finalizarAta(false)">✏️ Reabrir</button>` : `<button class="btn success" onclick="finalizarAta(true)">✔ Finalizar ata</button>`) : ''}
+        </div>
+      </div>
+    </div>
+    ${!pode ? '<div class="read-only-notice">Seu perfil só permite ver e imprimir a ata.</div>' : bloqueada ? '<div class="alerta-ok">Esta ata está finalizada. Para corrigir algo, clique em “✏️ Reabrir”.</div>' : ''}
+    <div class="card">
+      <h3>📅 Dados da sessão</h3>
+      <div class="formgrid">
+        ${inp('data','Data','date')}${inp('horaInicio','Início','time')}${inp('horaFim','Encerramento','time')}
+        <div class="field"><label>Modalidade</label><select ${ed?'':'disabled'} onchange="setAta('modalidade', this.value)">${['Presencial','Híbrida','Online'].map(m=>`<option ${a.modalidade===m?'selected':''}>${m}</option>`).join('')}</select></div>
+        ${inp('local','Local','', 'wide','Ex.: Plenário da Câmara Municipal de Jaborandi')}
+        ${inp('presidente','Presidida por','', 'half','Nome de quem presidiu')}${inp('cargoPresidente','Cargo','', 'half')}
+        ${inp('secretario','Secretariada / lavrada por','', 'half','Nome de quem redigiu a ata')}${inp('cargoSecretario','Cargo','', 'half')}
+        <div class="field wide"><label>Texto adicional de abertura (opcional)</label><textarea ${ed?'':'disabled'} onchange="setAta('abertura', this.value)" placeholder="Ex.: A mesa foi composta por…">${esc(a.abertura)}</textarea></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="flexrow" style="margin-bottom:8px;"><h3 style="margin:0;">👥 Presentes (${a.presentes.length})</h3>
+        ${ed?`<div class="actions"><button class="btn ghost small" onclick="document.getElementById('prArq').click()">⭱ Importar lista (Excel/CSV)</button><input type="file" id="prArq" accept=".xlsx,.xls,.ods,.csv,.txt" style="display:none" onchange="importarPresentes(event)"><button class="btn ghost small" onclick="copiarPresentesAnterior()">↺ Copiar da audiência anterior</button></div>`:''}</div>
+      ${ed?`<div class="formgrid" style="margin-bottom:10px;">
+        <div class="field half"><label>Nome</label><input id="prNome" onkeydown="if(event.key==='Enter') adicionarPresente()"></div>
+        <div class="field"><label>Cargo / função</label><input id="prCargo" onkeydown="if(event.key==='Enter') adicionarPresente()"></div>
+        <div class="field"><label>Segmento</label><select id="prSeg">${segOpts('')}</select></div>
+        <div class="field half"><label>Instituição / representação</label><input id="prInst" onkeydown="if(event.key==='Enter') adicionarPresente()"></div>
+        <div class="field" style="display:flex;align-items:flex-end;"><button class="btn" onclick="adicionarPresente()">+ Adicionar</button></div>
+      </div>`:''}
+      ${a.presentes.length ? `<div class="table-wrap" style="max-height:320px;"><table><thead><tr><th>Nº</th><th>Nome</th><th>Cargo / função</th><th>Segmento</th><th>Instituição</th><th></th></tr></thead><tbody>
+        ${a.presentes.map((p,i)=>`<tr><td>${i+1}</td><td><b>${esc(p.nome)}</b></td><td>${esc(p.cargo)||'—'}</td><td>${esc(p.segmento)||'—'}</td><td>${esc(p.instituicao)||'—'}</td><td>${ed?`<button class="btn ghost small" onclick="removerPresente('${p.id}')">🗑</button>`:''}</td></tr>`).join('')}</tbody></table></div>
+        <div class="actions" style="margin-top:6px;"><button class="btn ghost small" onclick="imprimirListaPresenca(false)">🖨️ Imprimir lista com os nomes (para assinar)</button></div>` : '<div class="muted" style="font-size:12.5px;">Nenhum presente registrado. Dica: imprima a “Lista de presença em branco” para recolher as assinaturas e digite ou importe os nomes depois.</div>'}
+    </div>
+    <div class="card" id="ataPerguntas">
+      <h3>🙋 Perguntas e manifestações da população (${a.perguntas.length})</h3>
+      ${ed?`<div class="formgrid" style="margin-bottom:10px;">
+        <div class="field half"><label>Quem perguntou / se manifestou</label><input id="pgAutor" value="${esc(pg?pg.autor:'')}" placeholder="Nome (ou “Participante”)"></div>
+        <div class="field half"><label>Segmento</label><select id="pgSeg">${segOpts(pg?pg.segmento:'')}</select></div>
+        <div class="field wide"><label>Pergunta / manifestação</label><textarea id="pgTexto">${esc(pg?pg.pergunta:'')}</textarea></div>
+        <div class="field wide"><label>Resposta</label><textarea id="pgResp" placeholder="Deixe em branco se ficou para responder depois">${esc(pg?pg.resposta:'')}</textarea></div>
+        <div class="field half"><label>Respondida por</label><input id="pgQuem" value="${esc(pg?pg.respondidoPor:'')}"></div>
+        <div class="field half" style="display:flex;align-items:flex-end;gap:8px;"><button class="btn" onclick="salvarPergunta()">${pg?'💾 Salvar alterações':'+ Registrar pergunta'}</button>${pg?`<button class="btn secondary" onclick="editingPerguntaId=null;render()">Cancelar</button>`:''}</div>
+      </div>`:''}
+      ${a.perguntas.length ? `<div class="mini-list">${a.perguntas.map((p,i)=>`<div class="mini-item" style="cursor:default;align-items:flex-start;">
+          <b style="color:var(--brand-dark);">${i+1}.</b>
+          <div style="flex:1;min-width:0;"><div class="mi-t">${esc(p.autor||'Participante')}${p.segmento?` <span class="muted" style="font-weight:400;">· ${esc(p.segmento)}</span>`:''}</div>
+            <div style="font-size:12.5px;margin-top:2px;">“${esc(p.pergunta)}”</div>
+            <div style="font-size:12.5px;margin-top:4px;color:${p.resposta?'var(--green)':'var(--amber)'};">${p.resposta?`↳ ${esc(p.respondidoPor||'Resposta')}: “${esc(p.resposta)}”`:'↳ aguardando resposta'}</div></div>
+          ${ed?`<button class="btn ghost small" onclick="editingPerguntaId='${p.id}';render();setTimeout(()=>document.getElementById('ataPerguntas').scrollIntoView({behavior:'smooth'}),50)">✏️</button><button class="btn ghost small" onclick="removerPergunta('${p.id}')">🗑</button>`:''}
+        </div>`).join('')}</div>` : '<div class="muted" style="font-size:12.5px;">Nenhuma pergunta registrada.</div>'}
+    </div>
+    <div class="card" id="ataEnc">
+      <h3>📌 Encaminhamentos (${a.encaminhamentos.length})</h3>
+      ${ed?`<div class="formgrid" style="margin-bottom:10px;">
+        <div class="field wide"><label>Encaminhamento</label><input id="enDesc" value="${esc(en?en.descricao:'')}" placeholder="Ex.: Ampliar o horário de atendimento da UBS Centro"></div>
+        <div class="field"><label>Responsável</label><input id="enResp" value="${esc(en?en.responsavel:'')}"></div>
+        <div class="field"><label>Prazo</label><input id="enPrazo" type="date" value="${esc(en?en.prazo:'')}"></div>
+        <div class="field"><label>Situação</label><select id="enSit">${SITUACOES_ENC.map(s=>`<option ${en&&en.situacao===s?'selected':''}>${s}</option>`).join('')}</select></div>
+        <div class="field"><label>Observação</label><input id="enObs" value="${esc(en?en.obs:'')}"></div>
+        <div class="field wide" style="display:flex;gap:8px;"><button class="btn" onclick="salvarEncaminhamento()">${en?'💾 Salvar alterações':'+ Registrar encaminhamento'}</button>${en?`<button class="btn secondary" onclick="editingEncId=null;render()">Cancelar</button>`:''}</div>
+      </div>`:''}
+      ${a.encaminhamentos.length ? `<div class="table-wrap"><table><thead><tr><th>Nº</th><th>Encaminhamento</th><th>Responsável</th><th>Prazo</th><th>Situação</th><th></th></tr></thead><tbody>
+        ${a.encaminhamentos.map((x,i)=>`<tr><td>${i+1}</td><td style="white-space:normal;min-width:220px;">${esc(x.descricao)}${x.obs?`<div class="muted" style="font-size:11px;">${esc(x.obs)}</div>`:''}</td><td>${esc(x.responsavel)||'—'}</td><td>${x.prazo?fmtDateBR(x.prazo):'—'}</td>
+          <td>${pode?`<select onchange="setSituacaoEnc('${c.id}','${x.id}',this.value)" style="padding:4px 6px;border:1px solid var(--line);border-radius:6px;">${SITUACOES_ENC.map(s=>`<option ${x.situacao===s?'selected':''}>${s}</option>`).join('')}</select> `:''}${badgeSituacaoEnc(x)}</td>
+          <td class="nowrap">${ed?`<button class="btn ghost small" onclick="editingEncId='${x.id}';render();setTimeout(()=>document.getElementById('ataEnc').scrollIntoView({behavior:'smooth'}),50)">✏️</button><button class="btn ghost small" onclick="removerEncaminhamento('${x.id}')">🗑</button>`:''}</td></tr>`).join('')}</tbody></table></div>` : '<div class="muted" style="font-size:12.5px;">Nenhum encaminhamento registrado.</div>'}
+    </div>
+    ${pendentes.length ? `
+    <div class="card">
+      <h3>⏳ Encaminhamentos pendentes de audiências anteriores (${pendentes.length})</h3>
+      <div class="subtitle">Atualize a situação aqui — o retorno à população pode entrar na apresentação (opção “Retorno dos encaminhamentos”).</div>
+      <div class="table-wrap"><table><thead><tr><th>Audiência</th><th>Encaminhamento</th><th>Responsável</th><th>Prazo</th><th>Situação</th></tr></thead><tbody>
+        ${pendentes.map(x=>`<tr><td class="nowrap">${esc(compRotuloCurto(x.comp))}</td><td style="white-space:normal;min-width:220px;">${esc(x.e.descricao)}</td><td>${esc(x.e.responsavel)||'—'}</td><td>${x.e.prazo?fmtDateBR(x.e.prazo):'—'}</td>
+          <td>${pode?`<select onchange="setSituacaoEnc('${x.comp.id}','${x.e.id}',this.value)" style="padding:4px 6px;border:1px solid var(--line);border-radius:6px;">${SITUACOES_ENC.map(s=>`<option ${x.e.situacao===s?'selected':''}>${s}</option>`).join('')}</select> `:''}${badgeSituacaoEnc(x.e)}</td></tr>`).join('')}</tbody></table></div>
+    </div>` : ''}
+    <div class="card">
+      <h3>📝 Considerações finais (opcional)</h3>
+      <textarea class="fig-in" style="min-height:80px;" ${ed?'':'disabled'} onchange="setAta('consideracoes', this.value)" placeholder="Ex.: O Conselho Municipal de Saúde manifestou-se favoravelmente à aprovação do relatório…">${esc(a.consideracoes)}</textarea>
+    </div>
+    <div class="section-title">👁 Prévia da ata</div>
+    <div class="card" id="ataPrint">${ataDocumentoHTML(c, a, false)}</div>`;
+}
+
+/* ============================================================
    PAINEL DA AUDIÊNCIA (dashboard da competência em exibição)
    ============================================================ */
 function checklistPreparacao(c){
@@ -4063,6 +4779,16 @@ function montarSlides(c){
   if(ap.capa) slides.push({ tipo:'capa' });
   if(ap.baseLegal) slides.push({ tipo:'texto', icone:'⚖️', titulo:'Por que esta audiência?', tag:'Base legal', cor:h.cor, itens: BASE_LEGAL_ITENS });
   const idxPauta = slides.length;
+  // Retorno à população: o que foi feito com os encaminhamentos das audiências anteriores
+  if(ap.encaminhamentos){
+    const cAntEnc = compAnterior(c);
+    const ret = encaminhamentosDaAnterior(c).concat(encaminhamentosPendentesAnteriores(c).filter(x=>!cAntEnc || x.comp.id!==cAntEnc.id));
+    if(ret.length){
+      secoes.push('📌 Retorno dos encaminhamentos');
+      paginarTabela(slides, { icone:'📌', titulo:'Retorno dos encaminhamentos das audiências anteriores', tag:'Encaminhamentos', cor:h.cor, colunas:['Audiência','Encaminhamento','Responsável','Prazo','Situação'],
+        linhas: ret.map(x=>[compRotuloCurto(x.comp), x.e.descricao, x.e.responsavel||'—', x.e.prazo?fmtDateBR(x.e.prazo):'—', x.e.situacao + (prazoVencido(x.e)?' — prazo vencido':'')]), larguras:[1.4,5.6,2.2,1.4,2.2], situacaoCol:4 }, 7);
+    }
+  }
   // Áreas: planilhas marcadas para a apresentação
   if(ap.areas){
     areasAtivas().forEach(a=>{
@@ -4259,7 +4985,7 @@ function slideHTML(s, idx, total, c){
     corpo = `<div style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;">${src?`<img src="${esc(src)}" alt="${esc(s.titulo)}" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:.4cqw;">`:'<span style="color:#8793A6">imagem indisponível</span>'}</div>${s.sub?`<div style="font-size:1.05cqw;color:#8793A6;text-align:right;margin-top:.5cqw;font-style:italic;">${esc(s.sub)}</div>`:''}`;
   } else if(s.tipo==='tabela'){
     corpo = `<table><thead><tr>${s.colunas.map(c=>`<th style="background:${esc(cor)}">${esc(c)}</th>`).join('')}</tr></thead><tbody>${s.linhas.map(l=>`<tr>${l.map((v,j)=>{
-      let st = ''; if(s.situacaoCol===j){ st = /Atingida/.test(v)?'color:#2E8B57;font-weight:700':/Abaixo/.test(v)?'color:#C1483F;font-weight:700':'color:#8793A6'; }
+      let st = ''; if(s.situacaoCol===j){ st = /Atingida|Concluído/.test(v)?'color:#2E8B57;font-weight:700':/Abaixo|Pendente|vencido/.test(v)?'color:#C1483F;font-weight:700':/andamento/.test(v)?'color:#B5740A;font-weight:700':'color:#8793A6'; }
       return `<td style="${st}">${esc(v)}</td>`; }).join('')}</tr>`).join('')}</tbody></table>`;
   }
   return `<div class="slide">
@@ -4306,7 +5032,7 @@ function viewApresentacao(){
       <h3>⚙️ O que entra na apresentação</h3>
       ${!pode?'<div class="read-only-notice">Seu perfil pode apresentar e baixar, mas não alterar estas opções.</div>':''}
       <div class="actions" style="gap:16px;">
-        ${ck('capa','Capa')}${ck('baseLegal','Base legal (LC 141)')}${ck('pauta','Pauta')}${ck('areas','Áreas temáticas (planilhas)')}${ck('figuras','Imagens e figuras das áreas')}${ck('indicadores','Indicadores e metas')}${ck('financeiro','Aplicação em saúde')}${ck('auditorias','Auditorias')}${ck('encerramento','Encerramento')}
+        ${ck('capa','Capa')}${ck('baseLegal','Base legal (LC 141)')}${ck('pauta','Pauta')}${ck('encaminhamentos','Retorno dos encaminhamentos')}${ck('areas','Áreas temáticas (planilhas)')}${ck('figuras','Imagens e figuras das áreas')}${ck('indicadores','Indicadores e metas')}${ck('financeiro','Aplicação em saúde')}${ck('auditorias','Auditorias')}${ck('encerramento','Encerramento')}
       </div>
       <div class="actions" style="gap:16px;margin-top:10px;">
         ${ck('interpretacao','Análise automática de cada planilha')}${ck('tabelas','Tabela com os dados de cada planilha')}
@@ -4526,7 +5252,7 @@ async function gerarPowerPoint(){
         const rows = [ s.colunas.map(t=>({ text:String(t), options:{ bold:true, color:'FFFFFF', fill:{color:cor}, fontSize:11 } })) ].concat(
           s.linhas.map((l, li)=>l.map((v, j)=>{
             let cc = '15263D', b = false;
-            if(s.situacaoCol===j){ cc = /Atingida/.test(v)?'2E8B57':/Abaixo/.test(v)?'C1483F':'8793A6'; b = true; }
+            if(s.situacaoCol===j){ cc = /Atingida|Concluído/.test(v)?'2E8B57':/Abaixo|Pendente|vencido/.test(v)?'C1483F':/andamento/.test(v)?'B5740A':'8793A6'; b = true; }
             return { text:String(v), options:{ fontSize:10.5, color:cc, bold:b, fill:{ color: li%2 ? 'F6F8FB' : 'FFFFFF' } } };
           })));
         sl.addTable(rows, { x:0.4, y:Y0+0.1, w:W-0.8, colW, fontFace:FONTE, border:{ type:'solid', pt:0.5, color:'D5DDE8' }, valign:'middle', autoPage:false, margin:0.06 });
@@ -4721,86 +5447,110 @@ function viewUsuarios(){
   if(!isMaster()) return `<div class="card">Acesso restrito ao administrador do sistema.</div>`;
   const ed = editingUsuarioId ? USERS_STATE.usuarios.find(u=>u.id===editingUsuarioId) : null;
   const sol = (USERS_STATE.solicitacoesSenha||[]).slice().reverse();
+  const seguro = ed && ed.uid;
   return `
     <div class="card">
       <h2>${ed ? '✏️ Editar usuário' : '➕ Novo usuário'}</h2>
-      <div class="subtitle">${ed ? 'Deixe a senha em branco para manter a atual. A nova senha não pode ser igual à anterior.' : 'Cadastre um usuário para acessar o sistema.'}</div>
+      <div class="subtitle">${ed ? (seguro ? 'Este usuário já tem login seguro: o e-mail e a senha são dele. Para uma senha nova, use “✉️ redefinir senha” — o Firebase envia o link para o e-mail dele.' : 'Deixe a senha em branco para manter a atual.') : (fbAuthOk ? 'O usuário recebe um <b>login seguro</b> (e-mail + senha). Informe uma senha provisória de pelo menos 6 caracteres e passe a ele — depois ele troca em “🔑 Alterar minha senha”.' : 'Cadastre um usuário para acessar o sistema.')}</div>
       <div class="formgrid">
-        <div class="field"><label>Usuário (login)</label><input id="usrUsuario" placeholder="Ex.: maria" value="${ed?esc(ed.usuario):''}" ${ed?'disabled':''}></div>
+        <div class="field"><label>Usuário (apelido de login)</label><input id="usrUsuario" placeholder="Ex.: maria" value="${ed?esc(ed.usuario):''}" ${ed?'disabled':''}></div>
         <div class="field"><label>Nome completo</label><input id="usrNome" value="${ed?esc(ed.nome):''}"></div>
-        <div class="field"><label>E-mail</label><input id="usrEmail" type="email" value="${ed?esc(ed.email||''):''}"></div>
-        <div class="field"><label>Senha</label><input id="usrSenha" type="password" placeholder="${ed?'(manter atual)':'Digite a senha'}" autocomplete="new-password"></div>
+        <div class="field"><label>E-mail ${fbAuthOk?'(login seguro)':''}</label><input id="usrEmail" type="email" value="${ed?esc(ed.email||''):''}" ${seguro?'disabled title="O e-mail do login seguro não pode ser trocado por aqui"':''} placeholder="nome@prefeitura.gov.br"></div>
+        ${seguro ? `<div class="field"><label>Senha</label><button class="btn secondary" style="width:100%;justify-content:center;" onclick="enviarRedefinicaoSenha('${escJs(ed.email)}')">✉️ Enviar link de nova senha</button></div>`
+                 : `<div class="field"><label>${ed?'Nova senha':'Senha provisória'}</label><input id="usrSenha" type="password" placeholder="${ed?'(manter atual)':'mínimo '+(fbAuthOk?6:4)+' caracteres'}" autocomplete="new-password"></div>`}
         <div class="field half"><label>Perfil</label><select id="usrPerfil">
           <option value="comum" ${ed&&ed.perfil==='comum'?'selected':''}>Usuário comum — vê, apresenta e imprime; não altera nada</option>
-          <option value="operador" ${ed&&ed.perfil==='operador'?'selected':''}>Operador — importa planilhas e lança indicadores, aplicação em saúde e auditorias</option>
+          <option value="operador" ${ed&&ed.perfil==='operador'?'selected':''}>Operador — importa planilhas e lança indicadores, aplicação em saúde, auditorias e ata</option>
           <option value="master" ${ed&&ed.perfil==='master'?'selected':''}>Administrador (master) — acesso total</option>
         </select></div>
       </div>
-      <div class="helpbox" style="margin-top:10px;">✉️ Cadastre o e-mail dos administradores para receberem os pedidos de “Esqueci minha senha”.</div>
-      <div class="actions">${ed?`<button class="btn" onclick="saveUsuario()">💾 Salvar alterações</button><button class="btn secondary" onclick="editingUsuarioId=null;render()">Cancelar</button>`:`<button class="btn" onclick="saveUsuario()">+ Adicionar usuário</button>`}</div>
+      <div class="actions" style="margin-top:12px;">${ed?`<button class="btn" onclick="saveUsuario()">💾 Salvar alterações</button><button class="btn secondary" onclick="editingUsuarioId=null;render()">Cancelar</button>`:`<button class="btn" onclick="saveUsuario()">+ Adicionar usuário</button>`}</div>
     </div>
     <div class="card">
-      <h2>Usuários cadastrados</h2>
+      <div class="flexrow" style="margin-bottom:8px;"><h2 style="margin:0;">Usuários cadastrados</h2><button class="btn ghost small" onclick="goto('seguranca')">🛡️ Situação do login seguro</button></div>
       <div class="table-wrap"><table>
-        <thead><tr><th>Usuário</th><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Bloqueio</th><th>Situação</th><th></th></tr></thead>
+        <thead><tr><th>Usuário</th><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Login seguro</th><th>Situação</th><th></th></tr></thead>
         <tbody>${USERS_STATE.usuarios.map(u=>`<tr>
           <td><b>${esc(u.usuario)}</b></td><td>${esc(u.nome)||'—'}</td><td>${esc(u.email)||'—'}</td>
           <td>${u.perfil==='master'?'<span class="badge ok">Administrador</span>':u.perfil==='operador'?'<span class="badge ambar">Operador</span>':'<span class="badge neutro">Usuário comum</span>'}</td>
-          <td>${u.bloqueado?'<span class="badge inativo">Bloqueado</span>':'<span class="badge ativo">Normal</span>'}</td>
+          <td>${u.uid?'<span class="badge ok">🔐 ativo</span>':u.bloqueado?'<span class="badge inativo">bloqueado</span>':'<span class="badge ambar">pendente</span>'}</td>
           <td><a href="#" onclick="toggleAtivoUsuario('${u.id}');return false;" style="text-decoration:none;">${u.ativo!==false?'<span class="badge ativo">✔ Ativo</span>':'<span class="badge inativo">⏸ Inativo</span>'}</a></td>
-          <td class="nowrap"><button class="btn ghost small" onclick="editingUsuarioId='${u.id}';render()">✏️ editar</button>${u.bloqueado?`<button class="btn ghost small" onclick="desbloquearUsuario('${u.id}')">🔓 desbloquear</button>`:''}<button class="btn ghost small" onclick="deleteUsuario('${u.id}')">🗑 excluir</button></td>
+          <td class="nowrap"><button class="btn ghost small" onclick="editingUsuarioId='${u.id}';render()">✏️ editar</button>${!u.uid && fbAuthOk && u.ativo!==false?`<button class="btn ghost small" onclick="criarLoginSeguroPara('${u.id}')">🔐 criar login seguro</button>`:''}${u.uid?`<button class="btn ghost small" onclick="enviarRedefinicaoSenha('${escJs(u.email)}')">✉️ redefinir senha</button>`:''}${u.bloqueado?`<button class="btn ghost small" onclick="desbloquearUsuario('${u.id}')">🔓 desbloquear</button>`:''}<button class="btn ghost small" onclick="deleteUsuario('${u.id}')">🗑 excluir</button></td>
         </tr>`).join('')}</tbody>
       </table></div>
-      <div class="muted" style="font-size:11.5px;margin-top:8px;">Clique em “Ativo/Inativo” para suspender o acesso (férias, afastamento) sem excluir o usuário.</div>
+      <div class="muted" style="font-size:11.5px;margin-top:8px;">Clique em “Ativo/Inativo” para suspender o acesso (férias, afastamento) sem excluir o usuário — com o login seguro, o bloqueio vale também direto no banco de dados.</div>
     </div>
     <div class="card">
       <h2>Solicitações de nova senha</h2>
+      <div class="subtitle">Quem já tem login seguro recebe o link de nova senha direto no e-mail, sem passar por aqui.</div>
       <div class="table-wrap"><table><thead><tr><th>Usuário</th><th>Nome</th><th>Perfil</th><th>Data/hora</th><th></th></tr></thead>
         <tbody>${sol.length===0?'<tr class="empty-row"><td colspan="5">Nenhuma solicitação.</td></tr>':sol.map(s=>`<tr><td><b>${esc(s.usuario)}</b></td><td>${esc(s.nome)}</td><td>${esc(s.perfil)}</td><td>${esc(s.dataHora)}</td><td><button class="btn ghost small" onclick="removerSolicitacaoSenha('${s.id}')">✔ atendida</button></td></tr>`).join('')}</tbody></table></div>
     </div>`;
 }
 async function saveUsuario(){
   if(!isMaster()) return;
-  const usuarioRaw = document.getElementById('usrUsuario').value.trim().toLowerCase();
-  const nome = document.getElementById('usrNome').value.trim();
-  const email = document.getElementById('usrEmail').value.trim();
-  const senha = document.getElementById('usrSenha').value;
-  const perfil = document.getElementById('usrPerfil').value;
+  const val = id => { const el = document.getElementById(id); return el ? el.value : ''; };
+  const usuarioRaw = val('usrUsuario').trim().toLowerCase();
+  const nome = val('usrNome').trim();
+  const email = val('usrEmail').trim().toLowerCase();
+  const senha = val('usrSenha');
+  const perfil = val('usrPerfil');
+  if(email && !emailValido(email)){ showToast('E-mail inválido.','warning'); return; }
+  if(email && USERS_STATE.usuarios.some(x=>x.id!==editingUsuarioId && x.email && x.email.toLowerCase()===email)){ showToast('Este e-mail já está cadastrado para outro usuário.','warning'); return; }
   if(editingUsuarioId){
     const u = USERS_STATE.usuarios.find(x=>x.id===editingUsuarioId);
     if(!u){ editingUsuarioId = null; render(); return; }
     if(u.usuario==='joao' && perfil!=='master'){ showToast('O administrador principal (joao) precisa continuar como administrador.','warning'); return; }
-    if(senha){
+    if(!u.uid && senha){
       if(senha.length<4){ showToast('A senha deve ter pelo menos 4 caracteres.','warning'); return; }
       const h = await hashSenha(senha);
       if(h===u.senhaHash){ showToast('A nova senha não pode ser igual à anterior.','warning'); return; }
       u.senhaHash = h;
     }
-    Object.assign(u, { nome, email, perfil, master: perfil==='master' });
+    const mudouPerfil = u.perfil!==perfil;
+    Object.assign(u, { nome, perfil, master: perfil==='master' });
+    if(!u.uid) u.email = email;
     editingUsuarioId = null;
+    if(u.uid && mudouPerfil) await sincronizarACL([u]);
   } else {
-    if(!usuarioRaw || usuarioRaw.length<3){ showToast('Informe um login com pelo menos 3 caracteres.','warning'); return; }
-    if(!senha || senha.length<4){ showToast('Informe uma senha com pelo menos 4 caracteres.','warning'); return; }
-    if(USERS_STATE.usuarios.some(u=>u.usuario===usuarioRaw)){ showToast('Já existe um usuário com esse login.','warning'); return; }
-    USERS_STATE.usuarios.push({ id: uid(), usuario:usuarioRaw, nome, email, perfil, master: perfil==='master', senhaHash: await hashSenha(senha), bloqueado:false, ativo:true, criadoEm:new Date().toISOString() });
+    if(!usuarioRaw || usuarioRaw.length<3){ showToast('Informe um usuário (apelido) com pelo menos 3 caracteres.','warning'); return; }
+    if(USERS_STATE.usuarios.some(u=>u.usuario===usuarioRaw)){ showToast('Já existe um usuário com esse apelido.','warning'); return; }
+    const novo = { id: uid(), usuario:usuarioRaw, nome, email, perfil, master: perfil==='master', bloqueado:false, ativo:true, criadoEm:new Date().toISOString() };
+    if(fbAuthOk){
+      if(!email){ showToast('Informe o e-mail: ele é o login seguro do usuário.','warning'); return; }
+      if(!senha || senha.length<6){ showToast('Informe uma senha provisória com pelo menos 6 caracteres.','warning'); return; }
+      try{ novo.uid = await criarContaAuth(email, senha); novo.authDesde = new Date().toISOString(); }
+      catch(e){
+        if(e.code==='auth/email-already-in-use'){ showToast('Este e-mail já tem login seguro (talvez criado antes). O usuário foi cadastrado: peça para ele entrar com o e-mail e a senha dele — o sistema vincula sozinho.','warning'); }
+        else { showToast(msgAuth(e),'error'); return; }
+      }
+    } else if(!senha || senha.length<4){ showToast('Informe uma senha com pelo menos 4 caracteres.','warning'); return; }
+    novo.senhaHash = await hashSenha(senha);
+    USERS_STATE.usuarios.push(novo);
+    if(novo.uid) await sincronizarACL([novo]);
   }
   registrarAcao('Usuário salvo: '+(usuarioRaw||''));
   saveUsersState(true); render(); showToast('Usuário salvo.','success');
 }
-function deleteUsuario(id){
+async function deleteUsuario(id){
   const u = USERS_STATE.usuarios.find(x=>x.id===id); if(!u) return;
   if(u.usuario==='joao'){ showToast('O administrador principal (joao) não pode ser excluído.','warning'); return; }
   if(currentUser && u.usuario===currentUser.usuario){ showToast('Você não pode excluir o próprio usuário.','warning'); return; }
-  if(!confirm(`Excluir o usuário "${u.usuario}"?`)) return;
+  if(!confirm(`Excluir o usuário "${u.usuario}"?${u.uid?'\n\nO acesso dele aos dados é cortado na hora. A conta de e-mail no Firebase continua existindo (pode ser apagada no console do Firebase → Authentication).':''}`)) return;
+  if(u.uid){ await lerACL(); aclRemoverUid(u.uid); try{ await gravarACL(); }catch(e){ showToast('Não foi possível retirar as permissões: '+(e.message||e),'error'); return; } }
   USERS_STATE.usuarios = USERS_STATE.usuarios.filter(x=>x.id!==id);
+  registrarAcao('Usuário excluído: '+u.usuario);
   saveUsersState(true); render();
 }
 function desbloquearUsuario(id){ const u = USERS_STATE.usuarios.find(x=>x.id===id); if(!u) return; u.bloqueado = false; limparTentativasLogin(u.usuario); saveUsersState(true); render(); showToast('Usuário desbloqueado.','success'); }
-function toggleAtivoUsuario(id){
+async function toggleAtivoUsuario(id){
   if(!isMaster()) return;
   const u = USERS_STATE.usuarios.find(x=>x.id===id); if(!u) return;
   if(u.ativo!==false && u.usuario==='joao'){ showToast('O administrador principal (joao) não pode ficar inativo.','warning'); return; }
-  u.ativo = u.ativo===false; saveUsersState(true); render();
+  u.ativo = u.ativo===false;
+  if(u.uid) await sincronizarACL([u]);
+  registrarAcao('Usuário '+(u.ativo?'reativado':'inativado')+': '+u.usuario);
+  saveUsersState(true); render();
 }
 function removerSolicitacaoSenha(id){ USERS_STATE.solicitacoesSenha = (USERS_STATE.solicitacoesSenha||[]).filter(s=>s.id!==id); saveUsersState(true); render(); }
 function viewLogAcesso(){
@@ -4959,13 +5709,13 @@ function getNav(){
       {id:'financeiro', label:'Aplicação em Saúde (LC 141)', icon:'⚖️'},
       {id:'auditorias', label:'Auditorias', icon:'🔎'},
     ])},
-    { group:'3. Apresentação', items:[ {id:'apresentacao', label:'Montar e Apresentar', icon:'🎞️'} ] },
+    { group:'3. Apresentação e Ata', items:[ {id:'apresentacao', label:'Montar e Apresentar', icon:'🎞️'}, {id:'ata', label:'Ata da Audiência', icon:'🖋️'} ] },
     { group:'4. Relatórios', items:[
       {id:'relQuadrimestre', label:'Relatório do Quadrimestre', icon:'📄'},
       {id:'relEvolucao', label:'Evolução entre Quadrimestres', icon:'📈'},
     ]},
   ];
-  if(isMaster()) nav.push({ group:'5. Administração', items:[ {id:'usuarios', label:'Usuários', icon:'👤'}, {id:'logAcesso', label:'Log de Acesso', icon:'📜'} ] });
+  if(isMaster()) nav.push({ group:'5. Administração', items:[ {id:'usuarios', label:'Usuários', icon:'👤'}, {id:'seguranca', label:'Segurança (login seguro)', icon:'🛡️'}, {id:'logAcesso', label:'Log de Acesso', icon:'📜'} ] });
   return nav;
 }
 const PAGE_META = {
@@ -4982,6 +5732,8 @@ const PAGE_META = {
   relQuadrimestre:['Relatório do Quadrimestre','Resumo nos três eixos do art. 36 da LC 141/2012, pronto para imprimir.'],
   relEvolucao:['Evolução entre Quadrimestres','Indicadores e aplicação em saúde ao longo das competências.'],
   usuarios:['Usuários','Cadastro de usuários, perfis e senhas. Apenas o administrador vê este módulo.'],
+  ata:['Ata da Audiência','Presentes, perguntas da população, encaminhamentos e o texto formal da ata, pronta para imprimir ou abrir no Word.'],
+  seguranca:['Segurança','Login seguro (Firebase Authentication): situação de cada usuário, permissões no banco e as regras do Firestore.'],
   logAcesso:['Log de Acesso','Quem usou o sistema, quando e o que fez. Apenas o administrador vê este módulo.'],
 };
 function metaDaView(v){
@@ -5028,13 +5780,15 @@ function renderNav(){
     </div>`;
   }).join('');
   const x = document.getElementById('navBuscaX'); if(x) x.style.display = navBusca ? '' : 'none';
-  const u = document.getElementById('sidebarUsuarioLogado'); if(u) u.textContent = currentUser ? ('👤 '+(currentUser.nome||currentUser.usuario)+' — '+perfilLabel(perfilAtual())) : '';
+  const u = document.getElementById('sidebarUsuarioLogado'); if(u) u.textContent = currentUser ? ((currentUser.uid && fbAuthOk && fbAuth.currentUser ? '🔐 ' : '👤 ')+(currentUser.nome||currentUser.usuario)+' — '+perfilLabel(perfilAtual())) : '';
+  const ls = document.getElementById('linkAlterarSenha'); if(ls) ls.style.display = (fbAuthOk && fbAuth.currentUser) ? '' : 'none';
 }
 function goto(view){
-  if((view==='usuarios' || view==='logAcesso') && !isMaster()) view = 'dashboard';
+  if((view==='usuarios' || view==='logAcesso' || view==='seguranca') && !isMaster()) view = 'dashboard';
+  if(view==='seguranca') aclCarregadaTela = false;
   if(viewBase(view)==='area' && !getArea(view.split(':')[1])) view = 'dashboard';
   if(!PAGE_META[view] && viewBase(view)!=='area') view = 'dashboard';
-  if(currentView!==view){ cabecalhoRascunho = null; editingCompId = null; editingAreaId = null; editingIndicadorId = null; editingAuditoriaId = null; editingUsuarioId = null; mostrarColagem = false; verTodasLinhas = false; juncaoAberta = null; }
+  if(currentView!==view){ cabecalhoRascunho = null; editingCompId = null; editingAreaId = null; editingIndicadorId = null; editingAuditoriaId = null; editingUsuarioId = null; mostrarColagem = false; verTodasLinhas = false; juncaoAberta = null; editingPerguntaId = null; editingEncId = null; }
   currentView = view;
   abrirGrupoDoModulo(view);
   document.getElementById('sidebar').classList.remove('open');
@@ -5070,6 +5824,8 @@ function render(){
     else if(base==='relEvolucao') html = viewRelEvolucao();
     else if(base==='usuarios') html = viewUsuarios();
     else if(base==='logAcesso') html = viewLogAcesso();
+    else if(base==='ata') html = viewAta();
+    else if(base==='seguranca') html = viewSeguranca();
   }catch(e){
     console.error(e);
     html = `<div class="alerta-erro">Ocorreu um erro ao montar esta tela: ${esc(e.message||e)}. Os dados não foram afetados — tente outro módulo ou recarregue a página.</div>`;
@@ -5111,16 +5867,27 @@ async function bootAfterAccessCode(){
   setTimeout(()=>{ imgLimparOrfas(); }, 4000);
 }
 async function iniciarComLogin(){
+  // 1) quem já entrou com o login seguro neste navegador continua conectado
+  if(fbAuthOk){
+    const user = await new Promise(res=>{ const parar = fbAuth.onAuthStateChanged(u=>{ parar(); res(u); }); });
+    if(user){ boasVindasPendente = true; await posLoginFirebase(user); return; }
+  }
+  // 2) sem login seguro: carrega os usuários para o login antigo (fase de transição)
   try{ await loadUsersState(); }
   catch(e){
     console.error(e);
-    if(erroPermissao(e)){ mostrarTelaRegras(); return; }
-    document.getElementById('loadingMsg').textContent = 'Sem conexão com a nuvem. Verifique a internet e recarregue a página.';
-    return;
+    if(erroPermissao(e)){
+      // Regras da fase 2 publicadas: sem login seguro nada é lido — só resta entrar com o e-mail
+      if(fbAuthOk){ usersLoaded = false; }
+      else { mostrarTelaRegras(); return; }
+    } else {
+      document.getElementById('loadingMsg').textContent = 'Sem conexão com a nuvem. Verifique a internet e recarregue a página.';
+      return;
+    }
   }
   document.getElementById('loadingScreen').style.display = 'none';
   let salvo = null; try{ salvo = sessionStorage.getItem('aud_logged_user'); }catch(e){}
-  if(salvo){ const u = USERS_STATE.usuarios.find(x=>x.usuario===salvo && x.ativo!==false && !x.bloqueado); if(u){ iniciarSessaoUsuario(u); return; } }
+  if(salvo && usersLoaded){ const u = USERS_STATE.usuarios.find(x=>x.usuario===salvo && x.ativo!==false && !x.bloqueado && !x.uid); if(u){ iniciarSessaoUsuario(u); return; } }
   atualizarVersaoLogin();
   document.getElementById('loginScreen').style.display = 'flex';
   setTimeout(()=>document.getElementById('loginUsuario').focus(), 50);
