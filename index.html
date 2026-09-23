@@ -285,6 +285,13 @@ td.nowrap{white-space:nowrap;}
 .seq-txt b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .seq-txt .muted{font-size:11px;}
 
+/* ---------------- Juntar planilhas ---------------- */
+.juncao{border:2px solid var(--brand);border-radius:10px;padding:14px 16px;margin:4px 0 14px;background:#F7FAFE;}
+.juncao-lista{display:flex;flex-direction:column;gap:6px;}
+.juncao-item{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;}
+.juncao-item.sel{border-color:var(--brand);box-shadow:0 0 0 2px rgba(30,90,168,.12);}
+.juncao-item input.fig-in:disabled{background:#F3F6FA;color:var(--ink-soft);}
+
 /* ---------------- Checklist de preparação ---------------- */
 .checklist{display:flex;flex-direction:column;gap:6px;}
 .ck-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:#fff;font-size:12.5px;cursor:pointer;}
@@ -714,7 +721,12 @@ if(window.pdfjsLib){
 function esc(s){ return (s===undefined||s===null)?'':String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function escJs(s){ return String(s===undefined||s===null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/\n/g,' '); }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,9); }
-function normTxt(s){ return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim(); }
+/* Todos os tipos de apóstrofo (reto, tipográficos, crase, acento agudo solto, sinal de minuto e
+   variantes Unicode) são ignorados nas importações e nas comparações: "D'Oeste" = "D’Oeste" = "DOeste";
+   '1520 e 1’520 (números guardados como texto) viram o número 1520. */
+const RE_APOSTROFOS = /['`\u00b4\u02b9\u02bb\u02bc\u02bd\u02c8\u2018\u2019\u201a\u201b\u2032\u2035\uff07]/g;
+function semApostrofo(s){ return String(s).replace(RE_APOSTROFOS, ''); }
+function normTxt(s){ return String(s||'').replace(RE_APOSTROFOS,'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim(); }
 function pad2(n){ return String(n).padStart(2,'0'); }
 function numOk(v){ return v!==null && v!==undefined && v!=='' && !isNaN(Number(v)) && isFinite(Number(v)); }
 function fmtNum(v, dec){
@@ -749,7 +761,7 @@ function parseNumBR(s){
   if(s===null || s===undefined) return NaN;
   let t = String(s).trim();
   if(!t) return NaN;
-  t = t.replace(/\s|R\$|%/g,'');
+  t = t.replace(/\s|R\$|%/g,'').replace(RE_APOSTROFOS,'');
   if(/^-?\d{1,3}(\.\d{3})+(,\d+)?$/.test(t) || /^-?\d+,\d+$/.test(t)) t = t.replace(/\./g,'').replace(',','.');
   else if(/^-?\d{1,3}(,\d{3})+(\.\d+)?$/.test(t)) t = t.replace(/,/g,'');
   if(!/^-?\d*\.?\d+(e[-+]?\d+)?$/i.test(t)) return NaN;
@@ -1093,7 +1105,7 @@ function trocarCodigoAcesso(){
    Criação desta versão com nuvem: setembro/2026 (mês 1).
    ============================================================ */
 const APP_CRIACAO = { mes: 9, ano: 2026 };
-const APP_ALTERACAO = 7;
+const APP_ALTERACAO = 9;
 const APP_DATA = '2026-09-23';
 function appVersao(){
   const p = APP_DATA.split('-').map(Number);
@@ -1419,6 +1431,10 @@ function garantirModulosNovos(){
     if(b.incluir===undefined) b.incluir = true;
     if(b.obs===undefined) b.obs = '';
     if(!Array.isArray(b.colunas)) b.colunas = [];
+    // apóstrofos ignorados também nos nomes de coluna já importados (e nas colunas escolhidas nessa planilha)
+    const limpa = s => { const x = semApostrofo(s).trim(); return x || s; };
+    if(b.colunas.some(c=>typeof c==='string' && c!==semApostrofo(c))) b.colunas = b.colunas.map(c=>typeof c==='string' ? limpa(c) : c);
+    ['valor','categoria','data'].forEach(k=>{ if(typeof b.cfg[k]==='string' && b.cfg[k]) b.cfg[k] = limpa(b.cfg[k]); });
   });
   if(!Array.isArray(STATE.indicadores)){
     STATE.indicadores = INDICADORES_PADRAO.map(x=>({ id: uid(), areaId:x[0], nome:x[1], unidade:x[2], meta:x[3], polaridade:x[4], fonte:x[5], descricao:'', ativo:true }));
@@ -2461,7 +2477,9 @@ function celulaNormalizada(v){
   if(typeof v==='string'){
     const t = v.replace(/[ ​]/g,' ').replace(/\s+/g,' ').trim();
     if(t==='' || RE_ERRO_EXCEL.test(t) || /^[-–—.…]+$/.test(t)) return null;
-    return t;
+    // apóstrofos são ignorados: '1520 (número guardado como texto) vira 1520; D’Oeste vira DOeste
+    const s = semApostrofo(t).trim();
+    return s==='' ? null : s;
   }
   if(typeof v==='number') return isFinite(v) ? v : null;
   if(typeof v==='boolean') return v ? 'Sim' : 'Não';
@@ -2651,7 +2669,7 @@ async function pdfParaTabela(pdf){
 }
 async function lerArquivoParaTabelas(file){
   const ext = file.name.split('.').pop().toLowerCase();
-  const nomeBase = file.name.replace(/\.[^.]+$/,'');
+  const nomeBase = semApostrofo(file.name.replace(/\.[^.]+$/,''));
   if(['xlsx','xls','xlsm','ods'].includes(ext)){
     if(typeof XLSX==='undefined') throw new Error('Biblioteca de planilhas não carregada.');
     const wb = XLSX.read(await file.arrayBuffer(), { type:'array', cellDates:true });
@@ -2711,7 +2729,12 @@ async function carregarLinhas(bases){
     CARREGANDO_LINHAS[b.id] = (async ()=>{
       try{
         const obj = JSON.parse(await blobLer(b.blob, b.partes));
-        LINHAS_CACHE[b.id] = obj.linhas || [];
+        // planilhas importadas antes desta versão: apóstrofos são ignorados ao abrir (a cópia na nuvem não é alterada)
+        LINHAS_CACHE[b.id] = (obj.linhas || []).map(r=>r.map(v=>{
+          if(typeof v!=='string') return v;
+          const s = semApostrofo(v).trim();
+          return s==='' ? null : s;
+        }));
       }catch(e){ console.error(e); LINHAS_CACHE[b.id] = []; b._erro = e.message || 'erro ao ler'; }
       finally{ delete CARREGANDO_LINHAS[b.id]; }
     })();
@@ -3089,12 +3112,16 @@ function viewArea(areaId){
         <div class="muted" style="font-size:12.5px;margin-top:4px;">${pode?'Use a área acima para importar.':'Peça a um operador ou ao administrador para importar os dados.'}${basesAnt.length?` No ${esc(cAnt.rotulo)} foram usadas ${basesAnt.length} planilha(s): ${basesAnt.slice(0,4).map(b=>'<b>'+esc(b.titulo)+'</b>').join(', ')}.`:''}</div>
       </div>` : `
     <div class="card no-print">
-      <h3>📚 Planilhas deste quadrimestre</h3>
+      <div class="flexrow" style="margin-bottom:8px;">
+        <h3 style="margin:0;">📚 Planilhas deste quadrimestre</h3>
+        ${pode && bases.length>=2 ? `<button class="btn secondary small" onclick="abrirJuncao('${areaId}')" title="Juntar 2 ou mais planilhas em uma só (ex.: consultas do Dr. A, Dr. B e Dr. C)">🧩 Juntar planilhas</button>` : ''}
+      </div>
+      ${juncaoAberta===areaId ? painelJuncaoHTML(areaId, c, bases) : ''}
       <div class="mini-list">
         ${bases.map(b=>`
           <div class="mini-item ${sel&&b.id===sel.id?'sel':''}" onclick="baseSelPorArea['${areaId}']='${b.id}';verTodasLinhas=false;render()">
             <span style="font-size:18px;">📄</span>
-            <div style="flex:1;min-width:0;"><div class="mi-t">${esc(b.titulo)}</div><div class="mi-s">${esc(b.origem)} · ${fmtNum(b.nLinhas)} linhas · ${b.colunas.length} colunas · ${esc(b.enviadoPor||'')} em ${new Date(b.enviadoEm).toLocaleDateString('pt-BR')}</div></div>
+            <div style="flex:1;min-width:0;"><div class="mi-t">${b.juncao?'🧩 ':''}${esc(b.titulo)}</div><div class="mi-s">${esc(b.origem)} · ${fmtNum(b.nLinhas)} linhas · ${b.colunas.length} colunas · ${esc(b.enviadoPor||'')} em ${new Date(b.enviadoEm).toLocaleDateString('pt-BR')}</div></div>
             ${b.incluir?'<span class="badge ok" title="Entra na apresentação">🎞 na apresentação</span>':'<span class="badge neutro">fora da apresentação</span>'}
           </div>`).join('')}
       </div>
@@ -3116,6 +3143,7 @@ function detalheBaseHTML(b, area, pode){
         ${pode ? `<input value="${esc(b.titulo)}" onchange="setBaseCampo('${b.id}','titulo',this.value)" title="Clique para renomear" style="font-weight:800;font-size:15px;border:1px dashed transparent;background:transparent;width:100%;padding:2px 4px;border-radius:6px;font-family:inherit;color:var(--ink);" onfocus="this.style.borderColor='var(--brand)';this.style.background='#fff'" onblur="this.style.borderColor='transparent';this.style.background='transparent'">` : `<div class="bh-title">${esc(b.titulo)}</div>`}
         <div class="bh-meta">Arquivo: ${esc(b.nomeArquivo)}${b.aba?' · aba '+esc(b.aba):''} · ${esc(b.origem)} · ${fmtNum(b.nLinhas)} linhas · importado por ${esc(b.enviadoPor||'—')} em ${new Date(b.enviadoEm).toLocaleString('pt-BR')}</div>
         ${b.limpeza?`<div class="bh-meta" style="margin-top:3px;">🧹 ${esc(resumoLimpeza(b.limpeza))}</div>`:''}
+        ${resumoJuncaoHTML(b)}
       </div>
       <div class="actions no-print">
         <button class="btn secondary small" onclick="baixarBase('${b.id}','xlsx')">⭳ Excel</button>
@@ -3748,6 +3776,192 @@ function ligarArrastarFiguras(areaId){
     const u = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
     if(u){ try{ const b = await (await fetch(u.trim())).blob(); if(b.type.startsWith('image/')) return adicionarFiguras([new File([b], 'Imagem da internet.'+(b.type.split('/')[1]||'png'), {type:b.type})], areaId); }catch(err){} showToast('Não consegui baixar essa imagem do site. Salve-a no computador e arraste o arquivo.','warning'); }
   });
+}
+
+/* ============================================================
+   JUNTAR PLANILHAS
+   Junta 2 ou mais planilhas da mesma área/competência em uma só (ex.:
+   consultas do Dr. A, do Dr. B e do Dr. C no quadrimestre).
+   - As linhas são empilhadas; colunas de mesmo nome se alinham, mesmo em
+     ordem diferente. Colunas com nomes diferentes podem ser unidas à mão
+     ("Qtde" com "Quantidade").
+   - Uma coluna "Origem" (nome editável) diz de qual arquivo veio cada linha,
+     o que permite ver o total geral e também o gráfico por médico/unidade.
+   - As linhas de "Total" de cada arquivo podem ser retiradas, para não somar
+     em dobro.
+   - A planilha nova entra no lugar da primeira original na sequência da área.
+     As originais: continuam guardadas fora da apresentação (padrão), ficam
+     como estão, ou são excluídas — o usuário escolhe.
+   ============================================================ */
+let juncaoAberta = null;     // área com o painel de junção aberto
+let juncaoSel = {};          // baseId -> { marcada, rotulo }
+let juncaoMapa = {};         // coluna (normalizada) -> coluna de destino (normalizada)
+let juncaoOpc = {};
+function rotuloDoTitulo(t){ return String(t||'').replace(/[_]+/g,' ').replace(/\s+/g,' ').trim(); }
+function abrirJuncao(areaId){
+  if(semPermissao('area')) return;
+  if(juncaoAberta===areaId){ juncaoAberta = null; render(); return; }
+  juncaoAberta = areaId; juncaoSel = {}; juncaoMapa = {};
+  basesDe(areaId, compSel().id).forEach(b=>{ juncaoSel[b.id] = { marcada:false, rotulo: rotuloDoTitulo(b.titulo) }; });
+  juncaoOpc = { origem:true, nomeColuna:'Origem', tirarTotais:true, titulo:'', originais:'fora' };
+  render();
+  setTimeout(()=>document.getElementById('painelJuncao')?.scrollIntoView({behavior:'smooth', block:'start'}), 60);
+}
+function juncaoMarcadas(){ return Object.keys(juncaoSel).filter(id=>juncaoSel[id].marcada && getBase(id)).map(getBase); }
+function marcarJuncao(id, v){ if(juncaoSel[id]) juncaoSel[id].marcada = v; juncaoMapa = {}; render(); }
+function marcarTodasJuncao(v){ Object.keys(juncaoSel).forEach(id=>juncaoSel[id].marcada = v); juncaoMapa = {}; render(); }
+function setJuncaoRotulo(id, v){ if(juncaoSel[id]) juncaoSel[id].rotulo = String(v||'').trim(); }
+function setJuncaoOpc(k, v, redesenhar){ juncaoOpc[k] = v; if(redesenhar) render(); }
+function setJuncaoMapa(k, destino){ if(destino) juncaoMapa[k] = destino; else delete juncaoMapa[k]; render(); }
+/* Título sugerido: a parte comum do nome dos arquivos (ex.: "Consultas médicas — Dr. A/B/C" → "Consultas médicas") */
+function tituloSugeridoJuncao(bases){
+  const tit = bases.map(b=>rotuloDoTitulo(b.titulo));
+  let pre = tit[0] || '';
+  tit.forEach(t=>{ let i = 0; while(i<pre.length && i<t.length && pre[i].toLowerCase()===t[i].toLowerCase()) i++; pre = pre.slice(0,i); });
+  // não corta palavra ao meio: se a parte comum termina no meio de uma palavra ("… - Dr" de "Dr A"/"Dr B"), descarta essa palavra
+  const sep = /[\s\-–—_.:(]/;
+  if(pre && tit.some(t=>t.length>pre.length && !sep.test(t[pre.length]))){ const m = pre.match(/^(.*[\s\-–—_.:(])[^\s\-–—_.:(]*$/); pre = m ? m[1] : ''; }
+  pre = pre.replace(/[\s\-–—_.:(]+$/,'').trim();
+  // "Consultas - Dr" + "A/B/C": o "Dr" faz parte do nome de cada um, não do título comum
+  for(let k=0;k<2;k++) pre = pre.replace(/(^|[\s\-–—_.:(])(dr|dra|doutor|doutora|enf|enfa|enfermeira|enfermeiro|prof|profa|ubs|esf|psf|usf|unidade|equipe|posto)\.?$/i,'').replace(/[\s\-–—_.:(]+$/,'').trim();
+  return pre.length>=4 ? pre+' — todos juntos' : `Junção de ${bases.length} planilhas`;
+}
+/* Colunas de todas as planilhas marcadas, com quantas planilhas têm cada uma. */
+function colunasDaJuncao(bases){
+  const mapa = {};
+  bases.forEach(b=>b.colunas.forEach(nome=>{ const k = normTxt(nome); if(!mapa[k]) mapa[k] = { k, nome, em:new Set() }; mapa[k].em.add(b.id); }));
+  return Object.values(mapa);
+}
+function montarJuncao(bases, opts){
+  const chave = nome => { const k = normTxt(nome); return opts.mapa[k] || k; };
+  const colunas = [], idx = {};
+  bases.forEach(b=>b.colunas.forEach(nome=>{ const k = chave(nome); if(!(k in idx)){ idx[k] = colunas.length; colunas.push(nome); } }));
+  const linhas = []; let totaisRemovidos = 0; const porFonte = [];
+  bases.forEach((b, bi)=>{
+    const pos = b.colunas.map(nome=>idx[chave(nome)]);
+    let n = 0;
+    (LINHAS_CACHE[b.id]||[]).forEach(r=>{
+      if(opts.tirarTotais && ehLinhaTotal(r)){ totaisRemovidos++; return; }
+      const nova = new Array(colunas.length).fill(null);
+      pos.forEach((j, k)=>{ const v = r[k]; if(v!==null && v!==undefined && nova[j]===null) nova[j] = v; });
+      linhas.push(opts.origem ? [opts.rotulos[bi]].concat(nova) : nova);
+      n++;
+    });
+    porFonte.push(n);
+  });
+  let cols = colunas, nomeOrigem = '';
+  if(opts.origem){
+    nomeOrigem = String(opts.nomeColuna||'').trim() || 'Origem';
+    while(cols.some(c=>normTxt(c)===normTxt(nomeOrigem))) nomeOrigem += ' (arquivo)';
+    cols = [nomeOrigem].concat(colunas);
+  }
+  return { colunas: cols, linhas, totaisRemovidos, nomeOrigem, porFonte };
+}
+function painelJuncaoHTML(areaId, c, bases){
+  const marc = juncaoMarcadas();
+  const cols = colunasDaJuncao(marc);
+  const parciais = cols.filter(x=>x.em.size < marc.length);
+  // presença efetiva, já contando as colunas unidas (ex.: "Qtde" dentro de "Quantidade")
+  const porK = {}; cols.forEach(x=>{ porK[x.k] = x; x.emEf = new Set(x.em); });
+  Object.keys(juncaoMapa).forEach(k=>{ const alvo = porK[juncaoMapa[k]]; if(alvo && porK[k]) porK[k].em.forEach(id=>alvo.emEf.add(id)); });
+  const tudoAlinhado = cols.filter(x=>!juncaoMapa[x.k]).every(x=>x.emEf.size===marc.length);
+  const totalLinhas = marc.reduce((s,b)=>s+(b.nLinhas||0),0);
+  const tituloAtual = juncaoOpc.titulo || (marc.length>=2 ? tituloSugeridoJuncao(marc) : '');
+  return `
+    <div class="juncao" id="painelJuncao">
+      <div class="flexrow" style="margin-bottom:6px;">
+        <h3 style="margin:0;">🧩 Juntar planilhas em uma só</h3>
+        <button class="btn ghost small" onclick="juncaoAberta=null;render()">✕ Fechar</button>
+      </div>
+      <div class="subtitle" style="margin-bottom:10px;">Marque as planilhas (2 ou mais) e escreva como cada uma deve aparecer na coluna <b>${esc(juncaoOpc.nomeColuna||'Origem')}</b> — por exemplo, o nome do médico ou da unidade. As linhas de todas serão empilhadas numa planilha nova.</div>
+      <div class="actions" style="margin-bottom:8px;"><button class="btn ghost small" onclick="marcarTodasJuncao(true)">☑ Marcar todas</button><button class="btn ghost small" onclick="marcarTodasJuncao(false)">☐ Desmarcar todas</button></div>
+      <div class="juncao-lista">
+        ${bases.map(b=>{ const s = juncaoSel[b.id] || { marcada:false, rotulo:b.titulo }; return `
+          <div class="juncao-item ${s.marcada?'sel':''}">
+            <label class="check" style="flex:1;min-width:200px;"><input type="checkbox" ${s.marcada?'checked':''} onchange="marcarJuncao('${b.id}', this.checked)"> <span><b>${esc(b.titulo)}</b><br><span class="muted" style="font-size:11px;">${fmtNum(b.nLinhas)} linhas · ${b.colunas.length} colunas</span></span></label>
+            ${juncaoOpc.origem ? `<input class="fig-in" style="margin:0;max-width:260px;" value="${esc(s.rotulo)}" placeholder="Nome na coluna ${esc(juncaoOpc.nomeColuna||'Origem')} (ex.: Dr. A)" oninput="setJuncaoRotulo('${b.id}', this.value)" ${s.marcada?'':'disabled'}>` : ''}
+          </div>`; }).join('')}
+      </div>
+      ${marc.length>=2 ? `
+      <div class="section-title" style="font-size:13px;margin-top:14px;">📋 Colunas da planilha juntada (${cols.length - Object.keys(juncaoMapa).length})</div>
+      <div class="actions" style="gap:6px;">${cols.filter(x=>!juncaoMapa[x.k]).map(x=>`<span class="badge ${x.emEf.size===marc.length?'ok':'ambar'}" title="${x.emEf.size===marc.length?'Presente em todas as planilhas':'Presente em '+x.emEf.size+' de '+marc.length+' planilhas'}">${esc(x.nome)}${x.emEf.size<marc.length?` · ${x.emEf.size}/${marc.length}`:''}${cols.some(y=>juncaoMapa[y.k]===x.k)?' 🔗':''}</span>`).join('')}</div>
+      ${parciais.length && tudoAlinhado ? `<div class="alerta-ok" style="margin-top:10px;">✔ Com as colunas unidas (🔗), as ${marc.length} planilhas ficaram perfeitamente alinhadas.</div>` : ''}
+      ${parciais.length ? `
+      <div class="alerta-aviso" style="margin-top:10px;">
+        Algumas colunas não existem em todas as planilhas (em amarelo). Se forem a mesma informação com nomes diferentes (ex.: <i>Qtde</i> e <i>Quantidade</i>), una-as abaixo; senão, as linhas das planilhas que não têm a coluna ficam em branco nela.
+        <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;">
+          ${parciais.map(x=>`<div class="actions" style="gap:8px;"><span style="min-width:180px;"><b>${esc(x.nome)}</b> <span class="muted">(${x.em.size}/${marc.length})</span></span> → juntar com:
+            <select onchange="setJuncaoMapa('${escJs(x.k)}', this.value)" style="padding:4px 6px;border:1px solid var(--line);border-radius:6px;">
+              <option value="">— manter separada —</option>
+              ${cols.filter(y=>y.k!==x.k && !juncaoMapa[y.k]).map(y=>`<option value="${esc(y.k)}" ${juncaoMapa[x.k]===y.k?'selected':''}>${esc(y.nome)}</option>`).join('')}
+            </select></div>`).join('')}
+        </div>
+      </div>` : `<div class="alerta-ok" style="margin-top:10px;">✔ As ${marc.length} planilhas têm as mesmas colunas — a junção vai ficar perfeitamente alinhada.</div>`}
+      <div class="formgrid" style="margin-top:12px;">
+        <div class="field half"><label>Título da planilha juntada</label><input id="juncaoTitulo" value="${esc(tituloAtual)}" oninput="setJuncaoOpc('titulo', this.value)"></div>
+        <div class="field"><label>Coluna que identifica o arquivo</label><select onchange="setJuncaoOpc('origem', this.value==='1', true)"><option value="1" ${juncaoOpc.origem?'selected':''}>Acrescentar coluna</option><option value="0" ${!juncaoOpc.origem?'selected':''}>Não acrescentar</option></select></div>
+        ${juncaoOpc.origem ? `<div class="field"><label>Nome dessa coluna</label><input value="${esc(juncaoOpc.nomeColuna)}" placeholder="Ex.: Médico, Unidade" onchange="setJuncaoOpc('nomeColuna', this.value, true)"></div>` : ''}
+        <div class="field half"><label>Depois de juntar, as planilhas originais…</label><select onchange="setJuncaoOpc('originais', this.value)">
+          <option value="fora" ${juncaoOpc.originais==='fora'?'selected':''}>ficam guardadas, mas FORA da apresentação (recomendado)</option>
+          <option value="manter" ${juncaoOpc.originais==='manter'?'selected':''}>continuam como estão (também na apresentação)</option>
+          <option value="excluir" ${juncaoOpc.originais==='excluir'?'selected':''}>são excluídas</option>
+        </select></div>
+        <div class="field half" style="display:flex;align-items:flex-end;"><label class="check" style="text-transform:none;letter-spacing:0;font-weight:500;font-size:13px;color:var(--ink);"><input type="checkbox" ${juncaoOpc.tirarTotais?'checked':''} onchange="setJuncaoOpc('tirarTotais', this.checked)"> Retirar a linha de “Total” de cada arquivo (evita somar em dobro)</label></div>
+      </div>
+      <div class="actions" style="margin-top:12px;">
+        <button class="btn" onclick="executarJuncao('${areaId}')">🧩 Juntar ${marc.length} planilhas (${fmtNum(totalLinhas)} linhas)</button>
+        <button class="btn secondary" onclick="juncaoAberta=null;render()">Cancelar</button>
+      </div>` : `<div class="muted" style="font-size:12.5px;margin-top:10px;">Marque pelo menos 2 planilhas.</div>`}
+    </div>`;
+}
+let juntando = false;
+async function executarJuncao(areaId){
+  if(semPermissao('area') || juntando) return;
+  const c = compSel();
+  const bases = juncaoMarcadas();
+  if(bases.length<2){ showToast('Marque pelo menos 2 planilhas para juntar.','warning'); return; }
+  const rotulos = bases.map(b=>(juncaoSel[b.id].rotulo || rotuloDoTitulo(b.titulo)));
+  if(juncaoOpc.origem && new Set(rotulos.map(normTxt)).size < rotulos.length &&
+     !confirm('Duas ou mais planilhas estão com o mesmo nome na coluna de origem, então não vai dar para diferenciá-las depois. Juntar mesmo assim?')) return;
+  const titulo = String((document.getElementById('juncaoTitulo')||{}).value || juncaoOpc.titulo || tituloSugeridoJuncao(bases)).trim();
+  if(juncaoOpc.originais==='excluir' && !confirm(`As ${bases.length} planilhas originais serão EXCLUÍDAS depois da junção (os dados continuam dentro da planilha juntada). Confirma?`)) return;
+  juntando = true;
+  try{
+    showToast('Juntando as planilhas…');
+    await carregarLinhas(bases);
+    const comErro = bases.filter(b=>b._erro);
+    if(comErro.length){ showToast('Não consegui ler: '+comErro.map(b=>b.titulo).join(', ')+'. Nada foi alterado.','error'); return; }
+    const r = montarJuncao(bases, { origem: juncaoOpc.origem, nomeColuna: juncaoOpc.nomeColuna, tirarTotais: juncaoOpc.tirarTotais, rotulos, mapa: juncaoMapa });
+    if(!r.linhas.length){ showToast('As planilhas marcadas não têm linhas de dados para juntar.','warning'); return; }
+    const nova = await salvarTabelaComoBase({ colunas: r.colunas, linhas: r.linhas, titulo, origem:`Junção de ${bases.length} planilhas`, aba:'', limpeza:null },
+                                            areaId, c.id, bases.map(b=>b.nomeArquivo||b.titulo).join(' + '));
+    nova.juncao = { fontes: bases.map((b,i)=>({ id:b.id, titulo:b.titulo, rotulo:rotulos[i], linhas:r.porFonte[i] })), totaisRemovidos: r.totaisRemovidos,
+                    colunasUnidas: Object.keys(juncaoMapa).length, em: new Date().toISOString(), por: currentUser ? (currentUser.nome||currentUser.usuario) : '' };
+    if(r.nomeOrigem) nova.cfg.categoria = r.nomeOrigem;   // gráfico já sai comparando médico a médico / unidade a unidade
+    // a planilha nova ocupa o lugar da primeira original na sequência da área
+    const lista = itensDaArea(areaId, c.id);
+    const iNova = lista.findIndex(it=>it.id===nova.id);
+    const iPrimeira = Math.min(...bases.map(b=>lista.findIndex(it=>it.id===b.id)).filter(i=>i>=0));
+    if(iNova>=0 && isFinite(iPrimeira)){ const [it] = lista.splice(iNova,1); lista.splice(iPrimeira,0,it); renumerarItens(lista); }
+    if(juncaoOpc.originais==='fora') bases.forEach(b=>{ b.incluir = false; });
+    else if(juncaoOpc.originais==='excluir'){
+      for(const b of bases){ try{ await blobExcluir(b.blob, b.partes); }catch(e){} delete LINHAS_CACHE[b.id]; delete ANALISE_CACHE[b.id]; }
+      const ids = new Set(bases.map(b=>b.id));
+      STATE.bases = STATE.bases.filter(b=>!ids.has(b.id));
+    }
+    baseSelPorArea[areaId] = nova.id;
+    juncaoAberta = null; juncaoMapa = {};
+    saveState(true);
+    registrarAcao(`Planilhas juntadas em "${titulo}": ${bases.map(b=>b.titulo).join(', ')}`);
+    render();
+    showToast(`Pronto: "${titulo}" com ${fmtNum(r.linhas.length)} linhas de ${bases.length} planilhas` + (r.totaisRemovidos?` · ${r.totaisRemovidos} linha(s) de Total retirada(s)`:'') + (juncaoOpc.originais==='fora'?' · as originais ficaram fora da apresentação':juncaoOpc.originais==='excluir'?' · as originais foram excluídas':''), 'success');
+  }catch(e){ console.error(e); showToast('Não foi possível juntar: '+(e.message||e),'error'); }
+  finally{ juntando = false; }
+}
+function resumoJuncaoHTML(b){
+  if(!b.juncao) return '';
+  const j = b.juncao;
+  return `<div class="bh-meta" style="margin-top:3px;">🧩 Junção de ${j.fontes.length} planilhas: ${j.fontes.map(f=>`<b>${esc(f.rotulo)}</b> (${fmtNum(f.linhas)} linhas)`).join(', ')}${j.totaisRemovidos?` · ${j.totaisRemovidos} linha(s) de Total retirada(s)`:''} · feita por ${esc(j.por||'—')} em ${new Date(j.em).toLocaleString('pt-BR')}</div>`;
 }
 
 /* ============================================================
@@ -4750,7 +4964,7 @@ function goto(view){
   if((view==='usuarios' || view==='logAcesso') && !isMaster()) view = 'dashboard';
   if(viewBase(view)==='area' && !getArea(view.split(':')[1])) view = 'dashboard';
   if(!PAGE_META[view] && viewBase(view)!=='area') view = 'dashboard';
-  if(currentView!==view){ cabecalhoRascunho = null; editingCompId = null; editingAreaId = null; editingIndicadorId = null; editingAuditoriaId = null; editingUsuarioId = null; mostrarColagem = false; verTodasLinhas = false; }
+  if(currentView!==view){ cabecalhoRascunho = null; editingCompId = null; editingAreaId = null; editingIndicadorId = null; editingAuditoriaId = null; editingUsuarioId = null; mostrarColagem = false; verTodasLinhas = false; juncaoAberta = null; }
   currentView = view;
   abrirGrupoDoModulo(view);
   document.getElementById('sidebar').classList.remove('open');
