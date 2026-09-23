@@ -1105,7 +1105,7 @@ function trocarCodigoAcesso(){
    Criação desta versão com nuvem: setembro/2026 (mês 1).
    ============================================================ */
 const APP_CRIACAO = { mes: 9, ano: 2026 };
-const APP_ALTERACAO = 9;
+const APP_ALTERACAO = 10;
 const APP_DATA = '2026-09-23';
 function appVersao(){
   const p = APP_DATA.split('-').map(Number);
@@ -1447,7 +1447,7 @@ function garantirModulosNovos(){
   if(!STATE.imagens || typeof STATE.imagens!=='object') STATE.imagens = {};
   if(!STATE.apresentacao || typeof STATE.apresentacao!=='object') STATE.apresentacao = {};
   const ap = STATE.apresentacao;
-  const apPadrao = { capa:true, baseLegal:true, pauta:true, areas:true, figuras:true, indicadores:true, financeiro:true, auditorias:true, encerramento:true,
+  const apPadrao = { capa:true, baseLegal:true, pauta:true, areas:true, figuras:true, indicadores:true, relQuadrimestre:false, relEvolucao:false, relEvolucaoGraficos:false, financeiro:true, auditorias:true, encerramento:true,
                      interpretacao:true, tabelas:false, graficosPorBase:4, textoEncerramento:'Obrigado!', contato:'', areasIncluidas:{} };
   Object.keys(apPadrao).forEach(k=>{ if(ap[k]===undefined) ap[k] = JSON.parse(JSON.stringify(apPadrao[k])); });
   // Competências: se não houver nenhuma, gera os três quadrimestres do ano e
@@ -4145,9 +4145,73 @@ function montarSlides(c){
         linhas: aud.map(a=>[a.orgao+(a.tipo?' — '+a.tipo:'')+(a.numero?' nº '+a.numero:''), a.objeto, a.situacao, [a.recomendacoes, a.providencias?'Providências: '+a.providencias:''].filter(Boolean).join(' · ')||'—']), larguras:[3,3.4,1.6,4.3] }, 5);
     }
   }
+  // Relatórios (módulo 4) — opcionais
+  if(ap.relQuadrimestre){ secoes.push('📄 Relatório do quadrimestre'); slidesRelQuadrimestre(slides, c, h); }
+  if(ap.relEvolucao){ secoes.push('📈 Evolução entre quadrimestres'); slidesRelEvolucao(slides, c, h, !!ap.relEvolucaoGraficos); }
   if(ap.pauta && secoes.length) slides.splice(idxPauta, 0, { tipo:'texto', icone:'🗒️', titulo:'Pauta', tag:c.rotulo, cor:h.cor, itens: secoes.map(s=>esc(s)), pauta:true });
   if(ap.encerramento) slides.push({ tipo:'encerramento' });
   return slides;
+}
+/* ---- Relatório do Quadrimestre em slides (os três eixos do art. 36 da LC 141/2012) ---- */
+function slidesRelQuadrimestre(slides, c, h){
+  const cor = h.cor || '#1E5AA8';
+  const f = finDe(c.id) || {}; const pct = percentualAplicado(f), min = minimoLegal(f);
+  const cAnt = compAnterior(c);
+  slides.push({ tipo:'secao', icone:'📄', titulo:'Relatório do Quadrimestre', sub:`Relatório Detalhado do Quadrimestre Anterior — ${c.rotulo}`, cor });
+  // I — recursos aplicados
+  const linhasFin = CAMPOS_FIN.map(x=>[x.rot, fmtMoney(f[x.k])]);
+  linhasFin.push(['% aplicado em ações e serviços públicos de saúde', pct!==null ? `${fmtPct(pct,2)} (mínimo ${fmtPct(min,0)}) — ${pct>=min?'cumpre':'não cumpre'} a LC 141` : 'não preenchido']);
+  paginarTabela(slides, { icone:'⚖️', titulo:'I — Montante e fonte dos recursos aplicados', tag:'Relatório', cor, colunas:['Item','Valor'], linhas: linhasFin, larguras:[8.5,3.8] }, 11);
+  // II — auditorias
+  const aud = auditoriasDe(c.id);
+  if(aud.length) paginarTabela(slides, { icone:'🔎', titulo:'II — Auditorias realizadas ou em andamento', tag:'Relatório', cor, colunas:['Órgão / tipo','Objeto','Situação','Recomendações e providências'],
+    linhas: aud.map(a=>[a.orgao+(a.tipo?' — '+a.tipo:''), a.objeto, a.situacao, [a.recomendacoes, a.providencias?'Providências: '+a.providencias:''].filter(Boolean).join(' · ')||'—']), larguras:[3,3.4,1.6,4.3] }, 5);
+  else slides.push({ tipo:'texto', icone:'🔎', titulo:'II — Auditorias realizadas ou em andamento', tag:'Relatório', cor, itens:[STATE.semAuditoria[c.id] ? 'Não houve auditorias, fiscalizações ou inspeções no período.' : 'Não informado.'] });
+  // III — produção de serviços (planilhas de cada área) e indicadores
+  const linhasBases = [];
+  areasAtivas().forEach(a=>itensDaArea(a.id, c.id).filter(it=>it.tipo==='base' && LINHAS_CACHE[it.id]).forEach(it=>{
+    const an = analisarBase(it.obj);
+    linhasBases.push([a.nome, it.obj.titulo, fmtNum(an.linhas.length), an.colValor ? an.colValor.nome : '—', an.colValor ? (an.dinheiro ? fmtMoney(an.colValor.soma) : fmtNum(an.colValor.soma)) : '—']);
+  }));
+  if(linhasBases.length) paginarTabela(slides, { icone:'🏥', titulo:'III — Oferta e produção de serviços', tag:'Relatório', cor, colunas:['Área','Base de dados','Registros','Medida principal','Total'], linhas: linhasBases, larguras:[2.4,4,1.3,2.6,2] }, 9);
+  const linhasInd = [];
+  areasAtivas().forEach(a=>STATE.indicadores.filter(i=>i.areaId===a.id && i.ativo!==false).forEach(i=>{
+    const l = lancamento(c.id, i.id)||{}, la = cAnt ? (lancamento(cAnt.id, i.id)||{}) : {};
+    linhasInd.push([a.nome, i.nome, numOk(i.meta)?fmtValorUnidade(i.meta,i.unidade):'—', fmtValorUnidade(la.valor,i.unidade), fmtValorUnidade(l.valor,i.unidade), {ok:'✔ Atingida',nao:'✖ Abaixo',semmeta:'Sem meta',sem:'Não lançado'}[situacaoIndicador(i,l.valor)]]);
+  }));
+  if(linhasInd.length) paginarTabela(slides, { icone:'🎯', titulo:'III — Indicadores de saúde', tag:'Relatório', cor, colunas:['Área','Indicador','Meta', cAnt?compRotuloCurto(cAnt):'Anterior', compRotuloCurto(c), 'Situação'], linhas: linhasInd, larguras:[2,5.2,1.2,1.3,1.3,1.5], situacaoCol:5 }, 8);
+}
+/* ---- Evolução entre Quadrimestres em slides ---- */
+function slidesRelEvolucao(slides, c, h, umGraficoPorIndicador){
+  const cor = h.cor || '#1E5AA8';
+  const ords = compsOrdenadas();
+  const comDados = ords.filter(x=>STATE.indicadores.some(i=>numOk((lancamento(x.id,i.id)||{}).valor)) || finDe(x.id));
+  const colunas = (comDados.length ? comDados : ords.slice(-3)).slice(-5);   // até 5 quadrimestres cabem no slide
+  slides.push({ tipo:'secao', icone:'📈', titulo:'Evolução entre Quadrimestres', sub: colunas.map(compRotuloCurto).join(' · '), cor });
+  const spEv = specEvolucaoAplicacao();
+  if(spEv) slides.push({ tipo:'grafico', icone:'💰', titulo: spEv.titulo, tag:'Evolução', cor:'#6A3EA1', spec: spEv });
+  const inds = STATE.indicadores.filter(i=>i.ativo!==false && colunas.some(x=>numOk((lancamento(x.id,i.id)||{}).valor)));
+  if(inds.length){
+    const linhas = inds.map(i=>{
+      const vals = colunas.map(x=>(lancamento(x.id,i.id)||{}).valor);
+      const validos = vals.filter(numOk);
+      let tend = '—';
+      if(validos.length>=2){ const d = Number(validos[validos.length-1]) - Number(validos[validos.length-2]); const melhor = i.polaridade==='menor' ? d<0 : d>0; tend = Math.abs(d)<1e-9 ? '= estável' : (d>0?'▲ ':'▼ ')+(melhor?'melhorou':'piorou'); }
+      return [i.nome, numOk(i.meta)?fmtValorUnidade(i.meta,i.unidade):'—'].concat(vals.map(v=>fmtValorUnidade(v,i.unidade))).concat([tend]);
+    });
+    const larg = [5.2, 1.2].concat(colunas.map(()=>1.2)).concat([1.6]);
+    paginarTabela(slides, { icone:'🎯', titulo:'Indicadores por quadrimestre', tag:'Evolução', cor, colunas:['Indicador','Meta'].concat(colunas.map(compRotuloCurto)).concat(['Tendência']), linhas, larguras: larg }, 8);
+    if(umGraficoPorIndicador){
+      inds.forEach(i=>{
+        const cs = ords.filter(x=>numOk((lancamento(x.id, i.id)||{}).valor));
+        if(cs.length<2) return;
+        const a = getArea(i.areaId) || {};
+        const sp = { tipo:'bar', titulo: i.nome, labels: cs.map(compRotuloCurto), series:[{ nome:'Resultado', valores: cs.map(x=>Number(lancamento(x.id, i.id).valor)), cor: a.cor||cor }], pct: i.unidade==='%', dinheiro: i.unidade==='R$' };
+        if(numOk(i.meta)) sp.series.push({ nome:'Meta', valores: cs.map(()=>Number(i.meta)), cor:'#C1483F', tipo:'line', tracejado:true });
+        slides.push({ tipo:'grafico', icone:'📈', titulo: i.nome, sub: (a.nome||'')+(i.fonte?' · Fonte: '+i.fonte:''), tag:'Evolução', cor: a.cor||cor, spec: sp });
+      });
+    }
+  } else slides.push({ tipo:'texto', icone:'🎯', titulo:'Indicadores por quadrimestre', tag:'Evolução', cor, itens:['Ainda não há indicadores lançados em mais de um quadrimestre para comparar.'] });
 }
 function paginarTabela(slides, base, porSlide){
   const n = Math.max(1, Math.ceil(base.linhas.length/porSlide));
@@ -4210,6 +4274,8 @@ function slideHTML(s, idx, total, c){
 }
 function basesDaApresentacao(c){
   const ap = STATE.apresentacao;
+  // o Relatório do Quadrimestre resume TODAS as planilhas da competência
+  if(ap.relQuadrimestre) return STATE.bases.filter(b=>b.competenciaId===c.id && (getArea(b.areaId)||{}).ativo!==false);
   if(!ap.areas) return [];
   return STATE.bases.filter(b=>b.competenciaId===c.id && b.incluir && ap.areasIncluidas[b.areaId]!==false && (getArea(b.areaId)||{}).ativo!==false);
 }
@@ -4245,6 +4311,10 @@ function viewApresentacao(){
       <div class="actions" style="gap:16px;margin-top:10px;">
         ${ck('interpretacao','Análise automática de cada planilha')}${ck('tabelas','Tabela com os dados de cada planilha')}
         <label class="check">Gráficos por planilha: <select ${pode?'':'disabled'} onchange="setApresentacao('graficosPorBase', Number(this.value))" style="padding:4px 6px;border:1px solid var(--line);border-radius:6px;">${[1,2,3,4].map(n=>`<option ${Number(ap.graficosPorBase)===n?'selected':''}>${n}</option>`).join('')}</select></label>
+      </div>
+      <div class="actions" style="gap:16px;margin-top:10px;"><span class="muted" style="font-size:12px;">Relatórios:</span>
+        ${ck('relQuadrimestre','📄 Relatório do Quadrimestre')}${ck('relEvolucao','📈 Evolução entre Quadrimestres')}
+        ${ap.relEvolucao ? ck('relEvolucaoGraficos','um gráfico por indicador (com a meta)') : ''}
       </div>
       ${ap.areas?`<div class="actions" style="gap:16px;margin-top:10px;"><span class="muted" style="font-size:12px;">Áreas:</span>${areasAtivas().map(a=>`<label class="check"><input type="checkbox" ${ap.areasIncluidas[a.id]!==false?'checked':''} ${pode?'':'disabled'} onchange="setAreaApresentacao('${a.id}', this.checked)"> ${esc(a.icone+' '+a.nome)} <span class="muted">(${basesDe(a.id,c.id).filter(b=>b.incluir).length})</span></label>`).join('')}</div>`:''}
       <div class="formgrid" style="margin-top:12px;">
