@@ -1065,7 +1065,7 @@ function trocarCodigoAcesso(){
    Criação desta versão com nuvem: setembro/2026 (mês 1).
    ============================================================ */
 const APP_CRIACAO = { mes: 9, ano: 2026 };
-const APP_ALTERACAO = 2;
+const APP_ALTERACAO = 3;
 const APP_DATA = '2026-09-23';
 function appVersao(){
   const p = APP_DATA.split('-').map(Number);
@@ -1361,6 +1361,9 @@ function garantirModulosNovos(){
     if(a.contexto===undefined) a.contexto = '';
     if(a.descricao===undefined) a.descricao = '';
   });
+  // Ordem de apresentação: áreas antigas recebem a posição em que já apareciam (nada muda para quem já usa).
+  let maiorOrdem = Math.max(0, ...STATE.areas.filter(a=>numOk(a.ordem)).map(a=>Number(a.ordem)));
+  STATE.areas.forEach(a=>{ if(!numOk(a.ordem)) a.ordem = ++maiorOrdem; });
   if(!Array.isArray(STATE.bases)) STATE.bases = [];
   STATE.bases.forEach(b=>{
     if(!b.cfg || typeof b.cfg!=='object') b.cfg = {};
@@ -2075,7 +2078,23 @@ const EMOJIS_AREA = [
   ['🚐','Transporte / TFD'],['🔬','Diagnóstico'],['📋','Regulação / gestão'],['👥','Recursos humanos / controle social'],['🌡️','Vigilância sanitária / ambiental'],
 ];
 function getArea(id){ return (STATE.areas||[]).find(a=>a.id===id) || null; }
-function areasAtivas(){ return (STATE.areas||[]).filter(a=>a.ativo!==false); }
+/* Todas as listas de áreas (menu, painel, apresentação, relatórios) seguem a "ordem de apresentação". */
+function areasOrdenadas(){ return (STATE.areas||[]).slice().sort((a,b)=>(Number(a.ordem)||999)-(Number(b.ordem)||999) || normTxt(a.nome).localeCompare(normTxt(b.nome))); }
+function areasAtivas(){ return areasOrdenadas().filter(a=>a.ativo!==false); }
+/* Renumera 1, 2, 3... mantendo a sequência; em empate, a área recém-editada fica na posição escolhida. */
+function renumerarAreas(prioridadeId, desceu){
+  const p = desceu ? 1 : -1;   // subiu: fica antes da que tinha o número; desceu: fica depois
+  areasOrdenadas().sort((a,b)=>(Number(a.ordem)-Number(b.ordem)) || (a.id===prioridadeId?p:b.id===prioridadeId?-p:0))
+    .forEach((a,i)=>{ a.ordem = i+1; });
+}
+function moverArea(id, delta){
+  if(semPermissao('areas')) return;
+  const lista = areasOrdenadas(); const i = lista.findIndex(a=>a.id===id); const j = i+delta;
+  if(i<0 || j<0 || j>=lista.length) return;
+  const oi = lista[i].ordem; lista[i].ordem = lista[j].ordem; lista[j].ordem = oi;
+  renumerarAreas();
+  saveState(false); render();
+}
 function viewAreas(){
   const pode = podeEditar('areas');
   const ed = editingAreaId==='nova' ? {id:'', nome:'', icone:'📁', cor:'#1E5AA8', descricao:'', palavrasChave:[], contexto:'', ativo:true} : (editingAreaId ? getArea(editingAreaId) : null);
@@ -2086,6 +2105,8 @@ function viewAreas(){
       <h2>${ed && editingAreaId!=='nova' ? '✏️ Editar área' : '➕ Nova área temática'}</h2>
       <div class="formgrid">
         <div class="field half"><label>Nome</label><input id="arNome" value="${esc(ed?ed.nome:'')}" placeholder="Ex.: Assistência Farmacêutica"></div>
+        <div class="field"><label>Ordem de apresentação</label><input id="arOrdem" type="number" min="1" step="1" value="${ed && editingAreaId!=='nova' ? esc(ed.ordem) : STATE.areas.length+1}" style="font-size:16px;font-weight:700;text-align:center;">
+          <div class="hint">01 = primeira. Se o número já for de outra área, esta entra no lugar e as demais descem uma posição.</div></div>
         <div class="field"><label>Ícone (emoji)</label><input id="arIcone" value="${esc(ed?ed.icone:'📁')}" maxlength="8" style="font-size:18px;text-align:center;"></div>
         <div class="field"><label>Cor</label><input id="arCor" type="color" value="${esc(ed?ed.cor:'#1E5AA8')}"></div>
         <div class="field wide"><label>Escolha um ícone (clique) — ou digite qualquer emoji acima (tecla Windows + . abre o painel de emojis)</label>
@@ -2102,10 +2123,12 @@ function viewAreas(){
     </div>` : '<div class="read-only-notice">Somente o administrador altera as áreas temáticas.</div>'}
     <div class="card">
       <h2>Áreas cadastradas</h2>
+      <div class="subtitle">Esta é a ordem usada no menu “2. Dados do quadrimestre”, no painel, nos indicadores, nos relatórios e na apresentação. Use ▲▼ para mudar rapidamente.</div>
       <div class="table-wrap"><table>
-        <thead><tr><th>Área</th><th>Descrição</th><th class="num">Planilhas</th><th class="num">Indicadores</th><th>Situação</th><th></th></tr></thead>
-        <tbody>${STATE.areas.map(a=>`
+        <thead><tr><th class="num">Ordem</th><th>Área</th><th>Descrição</th><th class="num">Planilhas</th><th class="num">Indicadores</th><th>Situação</th><th></th></tr></thead>
+        <tbody>${areasOrdenadas().map((a, i, arr)=>`
           <tr>
+            <td class="nowrap num"><b style="font-size:14px;">${pad2(a.ordem)}</b>${pode?` <button class="btn ghost small" title="Subir" ${i===0?'disabled':''} onclick="moverArea('${a.id}',-1)">▲</button><button class="btn ghost small" title="Descer" ${i===arr.length-1?'disabled':''} onclick="moverArea('${a.id}',1)">▼</button>`:''}</td>
             <td class="nowrap"><span class="area-dot" style="background:${esc(a.cor)}"></span>${esc(a.icone)} <b>${esc(a.nome)}</b></td>
             <td style="min-width:240px;">${esc(a.descricao)||'—'}</td>
             <td class="num">${STATE.bases.filter(b=>b.areaId===a.id).length}</td>
@@ -2126,12 +2149,20 @@ function salvarArea(){
   if(!nome){ showToast('Informe o nome da área.','warning'); return; }
   const dados = { nome, icone: val('arIcone')||'📁', cor: val('arCor')||'#1E5AA8', descricao: val('arDesc'),
     palavrasChave: val('arPalavras').split(',').map(s=>s.trim()).filter(Boolean), contexto: val('arContexto') };
+  const ordemTxt = val('arOrdem');
+  const ordem = ordemTxt==='' ? STATE.areas.length+1 : Number(ordemTxt);
+  if(!Number.isInteger(ordem) || ordem<1){ showToast('A ordem de apresentação deve ser um número inteiro: 1, 2, 3...','warning'); return; }
+  dados.ordem = ordem;
+  let id, desceu = false;
   if(editingAreaId && editingAreaId!=='nova'){
-    Object.assign(getArea(editingAreaId), dados);
+    desceu = ordem > Number(getArea(editingAreaId).ordem);
+    Object.assign(getArea(editingAreaId), dados); id = editingAreaId;
   } else {
     if(STATE.areas.some(a=>normTxt(a.nome)===normTxt(nome))){ showToast('Já existe uma área com esse nome.','warning'); return; }
-    STATE.areas.push(Object.assign({ id:'ar-'+uid(), ativo:true }, dados));
+    id = 'ar-'+uid();
+    STATE.areas.push(Object.assign({ id, ativo:true }, dados));
   }
+  renumerarAreas(id, desceu);
   registrarAcao('Área temática salva: '+nome);
   editingAreaId = null; saveState(true); render(); showToast('Área salva.','success');
 }
@@ -2147,6 +2178,7 @@ function excluirArea(id){
   if(nB || nI){ alert(`A área "${a.nome}" tem ${nB} planilha(s) e ${nI} indicador(es) ligados a ela. Para não perder dados ela não pode ser excluída — use "desativar" para escondê-la do menu.`); return; }
   if(!confirm(`Excluir a área "${a.nome}"?`)) return;
   STATE.areas = STATE.areas.filter(x=>x.id!==id);
+  renumerarAreas();
   registrarAcao('Área temática excluída: '+a.nome);
   saveState(true); render();
 }
@@ -2176,7 +2208,7 @@ function viewIndicadoresCatalogo(){
       <div class="subtitle">Os indicadores são lançados a cada quadrimestre em <b>2. Dados do quadrimestre → Indicadores e Metas</b>. As metas iniciais são sugestões — ajuste conforme a pactuação do município (PAS/PMS).</div>
       <div class="formgrid">
         <div class="field wide"><label>Nome do indicador</label><input id="inNome" value="${esc(ed?ed.nome:'')}" placeholder="Ex.: Cobertura vacinal de sarampo (1 ano)"></div>
-        <div class="field"><label>Área</label><select id="inArea">${STATE.areas.map(a=>`<option value="${a.id}" ${ed&&ed.areaId===a.id?'selected':''}>${esc(a.icone+' '+a.nome)}</option>`).join('')}</select></div>
+        <div class="field"><label>Área</label><select id="inArea">${areasOrdenadas().map(a=>`<option value="${a.id}" ${ed&&ed.areaId===a.id?'selected':''}>${esc(a.icone+' '+a.nome)}</option>`).join('')}</select></div>
         <div class="field"><label>Unidade</label><input id="inUnidade" list="listaUnidades" value="${esc(ed?ed.unidade:'%')}"><datalist id="listaUnidades">${UNIDADES_INDICADOR.map(u=>`<option value="${esc(u)}">`).join('')}</datalist></div>
         <div class="field"><label>Meta</label><input id="inMeta" inputmode="decimal" value="${ed&&numOk(ed.meta)?esc(String(ed.meta).replace('.',',')):''}" placeholder="vazio = sem meta"></div>
         <div class="field"><label>Quanto maior, melhor?</label><select id="inPol">
@@ -2196,7 +2228,7 @@ function viewIndicadoresCatalogo(){
       <div class="flexrow" style="margin-bottom:10px;">
         <h2 style="margin:0;">Indicadores cadastrados (${lista.length})</h2>
         <div class="actions">
-          <select onchange="filtroIndicadores.areaId=this.value;render()" style="padding:6px 8px;border:1px solid var(--line);border-radius:7px;"><option value="">Todas as áreas</option>${STATE.areas.map(a=>`<option value="${a.id}" ${f.areaId===a.id?'selected':''}>${esc(a.nome)}</option>`).join('')}</select>
+          <select onchange="filtroIndicadores.areaId=this.value;render()" style="padding:6px 8px;border:1px solid var(--line);border-radius:7px;"><option value="">Todas as áreas</option>${areasOrdenadas().map(a=>`<option value="${a.id}" ${f.areaId===a.id?'selected':''}>${esc(a.nome)}</option>`).join('')}</select>
           <input placeholder="🔎 Buscar…" value="${esc(f.termo)}" onchange="filtroIndicadores.termo=this.value;render()" style="padding:6px 8px;border:1px solid var(--line);border-radius:7px;">
         </div>
       </div>
