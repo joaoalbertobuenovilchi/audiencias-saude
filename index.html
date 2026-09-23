@@ -257,6 +257,34 @@ td.nowrap{white-space:nowrap;}
 .mini-item .mi-t{font-weight:700;font-size:13px;}
 .mini-item .mi-s{font-size:11px;color:var(--ink-soft);}
 
+/* ---------------- Imagens e figuras das áreas ---------------- */
+.fig-card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px;box-shadow:var(--shadow);display:flex;flex-direction:column;}
+.fig-card.fora{opacity:.55;}
+.fig-thumb{height:170px;border-radius:7px;background:#F3F6FA;display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:zoom-in;border:1px solid var(--line);}
+.fig-thumb img{max-width:100%;max-height:100%;object-fit:contain;}
+.fig-in{width:100%;margin-top:8px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-family:inherit;font-size:12.5px;}
+.fig-in:focus{outline:2px solid var(--brand);outline-offset:1px;}
+.rel-figs{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:14px;margin-top:10px;}
+.rel-figs figure{margin:0;border:1px solid var(--line);border-radius:8px;padding:8px;break-inside:avoid;}
+.rel-figs img{width:100%;max-height:320px;object-fit:contain;display:block;}
+.rel-figs figcaption{font-size:11.5px;margin-top:6px;}
+@media print{ .print-target .rel-figs{display:grid !important;grid-template-columns:1fr 1fr;} }
+
+/* ---------------- Sequência livre da área (planilhas + imagens) ---------------- */
+.seq-lista{display:flex;flex-direction:column;gap:6px;}
+.seq-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;transition:var(--transition);}
+.seq-item[draggable="true"]{cursor:grab;}
+.seq-item.arrastando{opacity:.4;}
+.seq-item.alvo{border-color:var(--brand);box-shadow:0 -3px 0 var(--brand) inset, 0 0 0 3px rgba(30,90,168,.12);}
+.seq-item.fora{opacity:.6;}
+.seq-alca{color:var(--ink-soft);font-size:16px;cursor:grab;user-select:none;}
+.seq-num{font-weight:800;color:var(--brand-dark);min-width:24px;text-align:right;}
+.seq-ic{width:48px;height:34px;display:flex;align-items:center;justify-content:center;font-size:20px;flex:0 0 auto;background:#F3F6FA;border-radius:6px;overflow:hidden;}
+.seq-ic img{max-width:100%;max-height:100%;object-fit:contain;}
+.seq-txt{flex:1;min-width:0;font-size:13px;}
+.seq-txt b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.seq-txt .muted{font-size:11px;}
+
 /* ---------------- Checklist de preparação ---------------- */
 .checklist{display:flex;flex-direction:column;gap:6px;}
 .ck-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:#fff;font-size:12.5px;cursor:pointer;}
@@ -744,7 +772,7 @@ function showToast(msg, type){
   if(type) t.classList.add('toast-'+type);
   t.classList.add('show');
   clearTimeout(t._timer);
-  t._timer = setTimeout(()=>t.classList.remove('show'), type==='error'?5000:3000);
+  t._timer = setTimeout(()=>t.classList.remove('show'), type==='error'||type==='warning' ? 7000 : 3000);
 }
 function fecharAplicativo(){
   if(!confirm('Deseja fechar o aplicativo?')) return;
@@ -1065,7 +1093,7 @@ function trocarCodigoAcesso(){
    Criação desta versão com nuvem: setembro/2026 (mês 1).
    ============================================================ */
 const APP_CRIACAO = { mes: 9, ano: 2026 };
-const APP_ALTERACAO = 3;
+const APP_ALTERACAO = 7;
 const APP_DATA = '2026-09-23';
 function appVersao(){
   const p = APP_DATA.split('-').map(Number);
@@ -1138,16 +1166,19 @@ function imgSrc(ref){
   if(ref==='padrao:munic') return window.LOGO_PADRAO_MUNIC || '';
   return IMG_CACHE[ref] || '';
 }
-async function imgGuardar(dataUrl){
+async function imgGuardar(dataUrl, tipo){
   const id = 'img_' + uid();
   const partes = await blobSalvar(id, dataUrl, 0);
   IMG_CACHE[id] = dataUrl;
   STATE.imagens[id] = { partes, criadoEm: new Date().toISOString() };
+  if(tipo) STATE.imagens[id].tipo = tipo;
   saveState(true);
   return id;
 }
-async function imgCarregarTodas(){
-  const ids = Object.keys(STATE.imagens||{}).filter(id=>!IMG_CACHE[id]);
+/* Na abertura só baixa logos/brasões/banners. As figuras das áreas (que podem ser muitas)
+   são baixadas quando a tela que as mostra é aberta — ou todas, no backup (incluirFiguras). */
+async function imgCarregarTodas(incluirFiguras){
+  const ids = Object.keys(STATE.imagens||{}).filter(id=>!IMG_CACHE[id] && (incluirFiguras || STATE.imagens[id].tipo!=='figura'));
   await Promise.all(ids.map(async id=>{
     try{ IMG_CACHE[id] = await blobLer(id, STATE.imagens[id].partes); }
     catch(e){ console.warn('Imagem não encontrada:', id, e); }
@@ -1161,6 +1192,9 @@ function imgReferenciadas(){
     if(h.banner) refs.add(h.banner);
     (h.logos||[]).forEach(l=> l && l.img && refs.add(l.img));
   });
+  (STATE.figuras||[]).forEach(f=>{ if(f && f.img) refs.add(f.img); });
+  // figuras sendo gravadas agora ainda não estão na lista: nunca apagar durante a gravação
+  if(typeof importandoFiguras!=='undefined' && importandoFiguras) Object.keys(STATE.imagens||{}).forEach(id=>{ if((STATE.imagens[id]||{}).tipo==='figura') refs.add(id); });
   if(cabecalhoRascunho){
     if(cabecalhoRascunho.banner) refs.add(cabecalhoRascunho.banner);
     (cabecalhoRascunho.logos||[]).forEach(l=> l && l.img && refs.add(l.img));
@@ -1233,6 +1267,7 @@ let STATE = {
   cabecalhoAtivo: '',
   areas: null,             // {id, nome, icone, cor, descricao, palavrasChave:[], contexto, ativo}
   bases: [],               // índice das planilhas importadas (as linhas ficam nos blobs)
+  figuras: [],             // imagens por área/competência: {id, areaId, competenciaId, img, legenda, fonte, incluir, ordem}
   indicadores: null,       // catálogo: {id, areaId, nome, unidade, meta, polaridade, fonte, descricao, ativo}
   lancamentos: {},         // {competenciaId: {indicadorId: {valor, obs, por, em}}}
   financeiro: {},          // {competenciaId: {...}}
@@ -1365,6 +1400,19 @@ function garantirModulosNovos(){
   let maiorOrdem = Math.max(0, ...STATE.areas.filter(a=>numOk(a.ordem)).map(a=>Number(a.ordem)));
   STATE.areas.forEach(a=>{ if(!numOk(a.ordem)) a.ordem = ++maiorOrdem; });
   if(!Array.isArray(STATE.bases)) STATE.bases = [];
+  if(!Array.isArray(STATE.figuras)) STATE.figuras = [];
+  STATE.figuras.forEach((f,i)=>{ if(f.incluir===undefined) f.incluir = true; if(f.legenda===undefined) f.legenda = ""; if(f.fonte===undefined) f.fonte = ""; if(!numOk(f.ordem)) f.ordem = i+1; });
+  // Sequência livre da área: planilhas e imagens antigas recebem a posição que já tinham
+  // (planilhas na ordem de importação, depois as imagens) — nada muda até o usuário reorganizar.
+  const gruposSeq = {};
+  STATE.bases.forEach(b=>{ const k = b.areaId+'|'+b.competenciaId; (gruposSeq[k] = gruposSeq[k] || []).push({ o:b, t:0, k: String(b.enviadoEm||'') }); });
+  STATE.figuras.forEach(f=>{ const k = f.areaId+'|'+f.competenciaId; (gruposSeq[k] = gruposSeq[k] || []).push({ o:f, t:1, k: Number(f.ordem)||0 }); });
+  Object.values(gruposSeq).forEach(lista=>{
+    const sem = lista.filter(x=>!numOk(x.o.posicao));
+    if(!sem.length) return;
+    let maior = Math.max(0, ...lista.filter(x=>numOk(x.o.posicao)).map(x=>Number(x.o.posicao)));
+    sem.sort((a,b)=>(a.t-b.t) || (a.t===0 ? a.k.localeCompare(b.k) : a.k-b.k)).forEach(x=>{ x.o.posicao = ++maior; });
+  });
   STATE.bases.forEach(b=>{
     if(!b.cfg || typeof b.cfg!=='object') b.cfg = {};
     if(b.cfg.ignorarTotais===undefined) b.cfg.ignorarTotais = true;
@@ -1383,7 +1431,7 @@ function garantirModulosNovos(){
   if(!STATE.imagens || typeof STATE.imagens!=='object') STATE.imagens = {};
   if(!STATE.apresentacao || typeof STATE.apresentacao!=='object') STATE.apresentacao = {};
   const ap = STATE.apresentacao;
-  const apPadrao = { capa:true, baseLegal:true, pauta:true, areas:true, indicadores:true, financeiro:true, auditorias:true, encerramento:true,
+  const apPadrao = { capa:true, baseLegal:true, pauta:true, areas:true, figuras:true, indicadores:true, financeiro:true, auditorias:true, encerramento:true,
                      interpretacao:true, tabelas:false, graficosPorBase:4, textoEncerramento:'Obrigado!', contato:'', areasIncluidas:{} };
   Object.keys(apPadrao).forEach(k=>{ if(ap[k]===undefined) ap[k] = JSON.parse(JSON.stringify(apPadrao[k])); });
   // Competências: se não houver nenhuma, gera os três quadrimestres do ano e
@@ -1619,11 +1667,12 @@ function excluirCompetencia(id){
   const c = getComp(id); if(!c) return;
   if(STATE.competencias.length<=1){ showToast('É necessário manter pelo menos uma competência.','warning'); return; }
   const nBases = STATE.bases.filter(b=>b.competenciaId===id).length;
+  const nFig = (STATE.figuras||[]).filter(f=>f.competenciaId===id).length;
   const nLanc = Object.keys(STATE.lancamentos[id]||{}).length;
   const nAud = STATE.auditorias.filter(a=>a.competenciaId===id).length;
   const temFin = !!STATE.financeiro[id];
-  if(nBases || nLanc || nAud || temFin){
-    alert(`A competência "${c.rotulo}" já tem dados lançados (${nBases} planilha(s), ${nLanc} indicador(es), ${nAud} auditoria(s)${temFin?', aplicação em saúde':''}).\n\nPara não perder nada, ela não pode ser excluída. Remova esses dados primeiro, se realmente quiser excluí-la.`);
+  if(nBases || nFig || nLanc || nAud || temFin){
+    alert(`A competência "${c.rotulo}" já tem dados lançados (${nBases} planilha(s), ${nFig} imagem(ns), ${nLanc} indicador(es), ${nAud} auditoria(s)${temFin?', aplicação em saúde':''}).\n\nPara não perder nada, ela não pode ser excluída. Remova esses dados primeiro, se realmente quiser excluí-la.`);
     return;
   }
   if(!confirm(`Excluir a competência "${c.rotulo}"?`)) return;
@@ -2174,8 +2223,8 @@ function toggleArea(id){
 function excluirArea(id){
   if(semPermissao('areas')) return;
   const a = getArea(id); if(!a) return;
-  const nB = STATE.bases.filter(b=>b.areaId===id).length, nI = STATE.indicadores.filter(i=>i.areaId===id).length;
-  if(nB || nI){ alert(`A área "${a.nome}" tem ${nB} planilha(s) e ${nI} indicador(es) ligados a ela. Para não perder dados ela não pode ser excluída — use "desativar" para escondê-la do menu.`); return; }
+  const nB = STATE.bases.filter(b=>b.areaId===id).length + (STATE.figuras||[]).filter(f=>f.areaId===id).length, nI = STATE.indicadores.filter(i=>i.areaId===id).length;
+  if(nB || nI){ alert(`A área "${a.nome}" tem ${nB} planilha(s)/imagem(ns) e ${nI} indicador(es) ligados a ela. Para não perder dados ela não pode ser excluída — use "desativar" para escondê-la do menu.`); return; }
   if(!confirm(`Excluir a área "${a.nome}"?`)) return;
   STATE.areas = STATE.areas.filter(x=>x.id!==id);
   renumerarAreas();
@@ -2377,6 +2426,29 @@ function desenharGraficosPendentes(animar, destino){
    LEITURA DE ARQUIVOS (Excel, CSV, TXT/QRP do TabWin, PDF, colar dados)
    ============================================================ */
 const EXT_SUPORTADAS = ['xlsx','xls','xlsm','ods','csv','tsv','txt','qrp','prn','pdf'];
+/* ------------------------------------------------------------
+   LIMPEZA NA IMPORTAÇÃO
+   Só os DADOS da tabela são importados. Ficam de fora:
+   - imagens, logotipos, gráficos e desenhos (o leitor nem os carrega);
+   - linhas de título do relatório (prefeitura, ministério, município,
+     período, "emitido em", usuário, página, filtros, legenda...);
+   - cabeçalhos repetidos a cada página e rodapés/notas ("Fonte:", "Notas:");
+   - linhas e colunas totalmente vazias, células de erro do Excel (#N/D...),
+     traços "-" e abas ocultas.
+   Subtítulos de grupo no meio da tabela (ex.: "UBS Centro" numa linha
+   sozinha, com os procedimentos embaixo) viram uma coluna "Grupo" em vez
+   de serem descartados — assim a informação não se perde.
+   ------------------------------------------------------------ */
+// Frases típicas de título/rodapé de relatório. Palavras que também podem ser nome de coluna
+// ("Fonte", "Hora", "Unidade"...) só contam quando vêm no formato "Rótulo:".
+const RE_LIXO_RELATORIO = new RegExp('^(' + [
+  'emitido em','emiss[aã]o\\b','impresso em','gerado em','data d[ae] (emiss|impress|gera)','p[aá]gina \\d',
+  'minist[eé]rio d','secretaria (municipal|estadual|de estado) d','prefeitura (municipal )?d','governo d','estado d[eo] ',
+  'total de registros','quantidade de registros','registros encontrados','\\*',
+  '(fontes?|notas?|obs|observa[cç](ao|ão|oes|ões)|legenda|hora|usu[aá]rio|operador|munic[ií]pio|uf|estado|per[ií]odo|compet[eê]ncia|refer[eê]ncia|filtros?|crit[eé]rios?|sistema|vers[aã]o|unidade|estabelecimento|cnes|ibge|departamento|coordena[cç][aã]o|relat[oó]rio|data|emiss[aã]o)\\.?\\s*:'
+].join('|') + ')', 'i');
+const RE_PAGINA = /p[aá]g(ina|\.)?\s*:?\s*\d+\s*(de|\/)\s*\d+/i;
+const RE_ERRO_EXCEL = /^#(N\/?[AD]|DIV\/0!?|REF!?|VALOR!?|VALUE!?|NOME\?|NAME\?|NUM!?|NULO!?|NULL!?|SPILL!?|CALC!?)$/i;
 function celulaNormalizada(v){
   if(v===null || v===undefined) return null;
   if(v instanceof Date){
@@ -2386,48 +2458,119 @@ function celulaNormalizada(v){
     const d = new Date(v.getTime() + 12*3600*1000);
     return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());
   }
-  if(typeof v==='string'){ const t = v.replace(/ /g,' ').trim(); return t==='' ? null : t; }
+  if(typeof v==='string'){
+    const t = v.replace(/[ ​]/g,' ').replace(/\s+/g,' ').trim();
+    if(t==='' || RE_ERRO_EXCEL.test(t) || /^[-–—.…]+$/.test(t)) return null;
+    return t;
+  }
   if(typeof v==='number') return isFinite(v) ? v : null;
   if(typeof v==='boolean') return v ? 'Sim' : 'Não';
   return String(v);
 }
 function ehTextoNaoNumerico(v){ return typeof v==='string' && isNaN(parseNumBR(v)); }
-/* Descobre a linha de cabeçalho (relatórios do DATASUS/TabWin costumam ter
-   linhas de título antes da tabela e notas de rodapé depois). */
+function contCel(r){ let n = 0; for(const v of r) if(v!==null && v!==undefined) n++; return n; }
+function primeiroTexto(r){ const v = r.find(x=>x!==null && x!==undefined); return v===undefined ? '' : String(v); }
+/* Linha de "enfeite" do relatório: título, rodapé, paginação, filtros... */
+function ehLinhaLixo(r){
+  const n = contCel(r);
+  if(n===0) return true;
+  const textos = r.filter(v=>v!==null && v!==undefined).map(String);
+  if(textos.some(t=>RE_PAGINA.test(t)) && n<=3) return true;
+  // título/rodapé: 1 célula, ou 2 células em que a segunda NÃO é número (senão é dado: "Secretaria Municipal de Saúde | 1.000")
+  if(n<=2 && RE_LIXO_RELATORIO.test(primeiroTexto(r)) && (n===1 || textos.slice(1).every(t=>isNaN(parseNumBR(t))))) return true;
+  // linha de informações no formato "Rótulo: valor" (ex.: "Município: Jaborandi | Período: 2026").
+  // O rótulo precisa ter letras — assim horários como "08:30" não contam.
+  const comDoisPontos = textos.filter(t=>/^[^:]{0,40}[A-Za-zÀ-ú][^:]{0,40}:(\s+\S|$)/.test(t) && !/^https?:/i.test(t)).length;
+  if(n<=4 && comDoisPontos>=Math.ceil(n*0.5)) return true;
+  return false;
+}
 function montarTabelaDeAOA(aoa){
-  const linhas = (aoa||[]).map(r=>(Array.isArray(r)?r:[]).map(celulaNormalizada));
-  const cont = r => r.filter(v=>v!==null).length;
-  const amostra = linhas.slice(0, 40);
-  const max = Math.max(0, ...amostra.map(cont));
+  const brutasOrig = (aoa||[]).map(r=>Array.isArray(r)?r:[]);
+  const linhas = brutasOrig.map(r=>r.map(celulaNormalizada));
+  // células preenchidas no arquivo original (um "-" conta: é dado zerado, não célula vazia)
+  const preenchidasOrig = brutasOrig.map(r=>r.filter(v=>v!==null && v!==undefined && String(v).trim()!=='').length);
+  const L = { titulo:0, rodape:0, repetidos:0, vazias:0, colunasVazias:0, grupos:0 };
+  // 1) linha de títulos das colunas: a primeira que parece cabeçalho de tabela
+  const amostra = linhas.slice(0, 60);
+  const max = Math.max(0, ...amostra.filter(r=>!ehLinhaLixo(r)).map(contCel));
   if(max===0) return null;
-  let hIdx = 0;
+  let hIdx = -1;
   for(let i=0;i<amostra.length;i++){
-    const r = amostra[i], n = cont(r);
+    const r = amostra[i], n = contCel(r);
+    if(ehLinhaLixo(r)) continue;
     if(n >= Math.max(2, Math.ceil(max*0.6)) || (max===1 && n===1)){
       const textos = r.filter(v=>v!==null && ehTextoNaoNumerico(v)).length;
       if(textos >= Math.ceil(n*0.5) || max===1){ hIdx = i; break; }
     }
   }
+  if(hIdx<0) hIdx = linhas.findIndex(r=>contCel(r)>0);
+  const preCabecalho = new Set(linhas.slice(0, hIdx).filter(r=>contCel(r)>0).map(r=>normTxt(primeiroTexto(r))));
+  L.titulo += linhas.slice(0, hIdx).filter(r=>contCel(r)>0).length;
   let ncol = 0;
   linhas.forEach(r=>{ for(let j=r.length-1;j>=0;j--){ if(r[j]!==null){ ncol = Math.max(ncol, j+1); break; } } });
-  const cab = linhas[hIdx] || [];
+  const pad = r=>{ const x = r.slice(0,ncol); while(x.length<ncol) x.push(null); return x; };
+  let cab = pad(linhas[hIdx] || []).map(v=>v===null?'':String(v));
+  // 1a) nível de cima (célula mesclada sobre várias colunas, ex.: "Quantidade aprovada" sobre os meses)
+  const acima = hIdx>0 ? pad(linhas[hIdx-1]) : null;
+  // (título de coluna A é título do relatório; sobre as colunas de valores é título de grupo de colunas)
+  if(acima && (contCel(acima)>=2 || acima.findIndex(v=>v!==null)>0) && !ehLinhaLixo(acima) && acima.every(v=>v===null || ehTextoNaoNumerico(v)) && contCel(acima) < contCel(linhas[hIdx])){
+    let pai = '';
+    cab = cab.map((c,j)=>{ if(acima[j]!==null) pai = String(acima[j]); return pai && c && normTxt(pai)!==normTxt(c) ? pai+' – '+c : (c || pai); });
+    L.titulo = Math.max(0, L.titulo-1);
+  }
+  // 1b) nível de baixo (subtítulos das colunas logo abaixo do cabeçalho)
+  let inicio = hIdx+1;
+  for(let k=0;k<2;k++){
+    const sub = linhas[inicio] ? pad(linhas[inicio]) : null;
+    if(!sub || ehLinhaLixo(sub)) break;
+    const abaixo = linhas.slice(inicio+1, inicio+16).map(pad).filter(r=>contCel(r)>0);
+    const colNum = j=>{ const vs = abaixo.map(r=>r[j]).filter(v=>v!==null); return vs.length>0 && vs.filter(v=>!isNaN(typeof v==='number'?v:parseNumBR(v))).length >= vs.length*0.7; };
+    const hits = sub.filter((v,j)=>v!==null && ehTextoNaoNumerico(v) && colNum(j)).length;
+    if(hits < 2) break;
+    let pai = '';
+    cab = cab.map((c,j)=>{ if(c) pai = c; const s = sub[j]!==null ? String(sub[j]) : ''; return s ? (pai && normTxt(pai)!==normTxt(s) ? pai+' – '+s : s) : c; });
+    inicio++;
+  }
+  // 2) linhas de dados: descarta lixo, cabeçalhos repetidos e guarda possíveis subtítulos de grupo
+  const cabNorm = cab.map(normTxt);
+  const itens = [];
+  for(let ii=inicio; ii<linhas.length; ii++){
+    const r = pad(linhas[ii]), n = contCel(r);
+    if(n===0){ L.vazias++; continue; }
+    const iguais = r.filter((v,j)=>v!==null && cabNorm[j] && normTxt(v)===cabNorm[j]).length;
+    if(iguais >= Math.max(2, Math.ceil(cabNorm.filter(Boolean).length*0.6))){ L.repetidos++; continue; }
+    if(ehLinhaLixo(r)){ itens.push({ lixo:true }); continue; }
+    if(n===1 && preenchidasOrig[ii]===1 && ncol>=3 && ehTextoNaoNumerico(primeiroTexto(r))){ itens.push({ rotulo: primeiroTexto(r) }); continue; }
+    itens.push({ r });
+  }
+  // rodapé: tudo depois da última linha de dados
+  while(itens.length && !itens[itens.length-1].r){ itens.pop(); L.rodape++; }
+  // subtítulos: viram coluna "Grupo" se forem únicos e tiverem dados embaixo; senão são títulos repetidos
+  const contRot = {}; itens.forEach(x=>{ if(x.rotulo){ const k = normTxt(x.rotulo); contRot[k] = (contRot[k]||0)+1; } });
+  const rotuloValido = (x, i)=> contRot[normTxt(x.rotulo)]===1 && !preCabecalho.has(normTxt(x.rotulo)) && !RE_LIXO_RELATORIO.test(x.rotulo) && itens[i+1] && itens[i+1].r;
+  const nValidos = itens.filter((x,i)=>x.rotulo && rotuloValido(x,i)).length;
+  const usarGrupo = nValidos >= 2;
+  let grupo = null; let dados = [];
+  itens.forEach((x,i)=>{
+    if(x.lixo){ L.titulo++; return; }
+    if(x.rotulo){ if(usarGrupo && rotuloValido(x,i)){ grupo = x.rotulo; L.grupos++; } else L.titulo++; return; }
+    dados.push(usarGrupo ? [ehLinhaTotal(x.r) ? null : grupo].concat(x.r) : x.r);
+  });
+  if(usarGrupo) cab = ['Grupo'].concat(cab);
+  // 3) colunas totalmente vazias saem
+  const manter = cab.map((c,j)=> dados.some(r=>r[j]!==null && r[j]!==undefined));
+  L.colunasVazias = manter.filter(m=>!m).length;
+  cab = cab.filter((c,j)=>manter[j]);
+  dados = dados.map(r=>r.filter((v,j)=>manter[j]));
+  if(!cab.length || !dados.length) return null;
   const usados = {};
-  let colunas = Array.from({length:ncol}, (_,j)=>{
-    let nome = cab[j]!==null && cab[j]!==undefined ? String(cab[j]).trim() : '';
-    if(!nome) nome = 'Coluna '+(j+1);
+  const colunas = cab.map((c,j)=>{
+    let nome = String(c||'').trim() || 'Coluna '+(j+1);
     const k = normTxt(nome);
     if(usados[k]){ usados[k]++; nome = nome+' ('+usados[k]+')'; } else usados[k] = 1;
     return nome;
   });
-  let dados = linhas.slice(hIdx+1).map(r=>{ const x = r.slice(0,ncol); while(x.length<ncol) x.push(null); return x; }).filter(r=>cont(r)>0);
-  // notas de rodapé ("Fonte: ...", "Notas: ...") — linhas finais com um único texto
-  if(ncol>=3){ while(dados.length && cont(dados[dados.length-1])<=1 && ehTextoNaoNumerico(dados[dados.length-1].find(v=>v!==null))) dados.pop(); }
-  // remove colunas totalmente vazias sem título
-  const manter = colunas.map((c,j)=> !/^Coluna \d+$/.test(c) || dados.some(r=>r[j]!==null));
-  colunas = colunas.filter((c,j)=>manter[j]);
-  dados = dados.map(r=>r.filter((v,j)=>manter[j]));
-  if(!colunas.length || !dados.length) return null;
-  return { colunas, linhas: dados };
+  return { colunas, linhas: dados, limpeza: L };
 }
 function decodificarTexto(buf){
   let txt = new TextDecoder('utf-8').decode(buf);
@@ -2435,7 +2578,7 @@ function decodificarTexto(buf){
   return txt.replace(/^﻿/,'');
 }
 function detectarDelimitador(txt){
-  const linhas = txt.split(/\r?\n/).filter(l=>l.trim()).slice(0, 60);
+  const linhas = txt.split(/\r?\n/).filter(l=>l.trim()).slice(0, 80);
   let melhor = null, pontos = 0;
   [';','\t','|',','].forEach(d=>{
     const cont = linhas.map(l=>l.split(d).length-1);
@@ -2450,11 +2593,61 @@ function detectarDelimitador(txt){
 function tabelaDeTexto(txt){
   const delim = detectarDelimitador(txt);
   if(delim){
-    const r = Papa.parse(txt, { delimiter: delim, skipEmptyLines:true });
+    const r = Papa.parse(txt, { delimiter: delim, skipEmptyLines:false });
     return montarTabelaDeAOA(r.data);
   }
-  const linhas = txt.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
-  return linhas.length ? { colunas:['Conteúdo'], linhas: linhas.map(l=>[l]) } : null;
+  // relatório em texto alinhado por espaços (TXT/PRN): colunas separadas por 2 ou mais espaços
+  const brutas = txt.split(/\r?\n/);
+  const aoa = brutas.map(l=>l.trim() ? l.trim().split(/\s{2,}|\t/) : []);
+  const freq = {}; aoa.forEach(r=>{ if(r.length>=2) freq[r.length] = (freq[r.length]||0)+1; });
+  const moda = Object.entries(freq).sort((a,b)=>b[1]-a[1])[0];
+  if(moda && moda[1]>=3){ const t = montarTabelaDeAOA(aoa); if(t) return t; }
+  return null;   // texto sem tabela (ofício, carta...) não é dado: não é importado
+}
+/* PDF: remonta a tabela pela POSIÇÃO de cada pedaço de texto na página
+   (linhas pela altura, colunas pelo alinhamento horizontal). */
+async function pdfParaTabela(pdf){
+  const linhasPdf = [];
+  for(let p=1; p<=pdf.numPages; p++){
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    const itens = content.items.filter(it=>it.str && it.str.trim()).map(it=>({ x0: it.transform[4], x1: it.transform[4] + (it.width||0), y: it.transform[5], h: Math.abs(it.transform[3]) || it.height || 8, s: it.str }));
+    itens.sort((a,b)=>(b.y-a.y) || (a.x0-b.x0));
+    const grupos = [];
+    itens.forEach(it=>{
+      const g = grupos.find(g=>Math.abs(g.y - it.y) <= Math.max(2, it.h*0.35));
+      if(g) g.itens.push(it); else grupos.push({ y: it.y, itens:[it] });
+    });
+    grupos.sort((a,b)=>b.y-a.y).forEach(g=>{
+      const ord = g.itens.sort((a,b)=>a.x0-b.x0);
+      const cels = [];
+      ord.forEach(it=>{
+        const ult = cels[cels.length-1];
+        const vao = ult ? it.x0 - ult.x1 : Infinity;
+        if(ult && vao < Math.max(3, it.h*0.45)){ ult.s += (vao > it.h*0.12 ? ' ' : '') + it.s; ult.x1 = Math.max(ult.x1, it.x1); }
+        else cels.push({ x0: it.x0, x1: it.x1, s: it.s });
+      });
+      linhasPdf.push(cels.map(c=>({ x0:c.x0, x1:c.x1, s:c.s.replace(/\s+/g,' ').trim() })).filter(c=>c.s));
+    });
+  }
+  // colunas: usa as linhas com a quantidade de células mais frequente como molde
+  const freq = {}; linhasPdf.forEach(l=>{ if(l.length>=2) freq[l.length] = (freq[l.length]||0)+1; });
+  const cand = Object.entries(freq).map(([k,v])=>[Number(k),v]).sort((a,b)=>(b[1]-a[1]) || (b[0]-a[0]));
+  if(!cand.length || cand[0][1] < 3) return { texto: linhasPdf.map(l=>l.map(c=>c.s).join(' ')) };
+  const k = cand[0][0];
+  const molde = linhasPdf.filter(l=>l.length===k);
+  const ancoras = Array.from({length:k}, (_,j)=> molde.reduce((a,l)=>a + (l[j].x0+l[j].x1)/2, 0)/molde.length);
+  const aoa = linhasPdf.map(l=>{
+    const r = new Array(k).fill(null);
+    l.forEach(c=>{
+      const cx = (c.x0+c.x1)/2;
+      let melhor = 0, dist = Infinity;
+      ancoras.forEach((a,j)=>{ const d = Math.abs(a-cx); if(d<dist){ dist=d; melhor=j; } });
+      r[melhor] = r[melhor]===null ? c.s : r[melhor]+' '+c.s;
+    });
+    return r;
+  });
+  return { aoa, texto: linhasPdf.map(l=>l.map(c=>c.s).join(' ')) };
 }
 async function lerArquivoParaTabelas(file){
   const ext = file.name.split('.').pop().toLowerCase();
@@ -2462,11 +2655,14 @@ async function lerArquivoParaTabelas(file){
   if(['xlsx','xls','xlsm','ods'].includes(ext)){
     if(typeof XLSX==='undefined') throw new Error('Biblioteca de planilhas não carregada.');
     const wb = XLSX.read(await file.arrayBuffer(), { type:'array', cellDates:true });
+    const infoAbas = (wb.Workbook && wb.Workbook.Sheets) || [];
+    const visiveis = wb.SheetNames.filter((nome,i)=>!(infoAbas[i] && infoAbas[i].Hidden));
     const tabelas = [];
-    wb.SheetNames.forEach(nome=>{
-      const aoa = XLSX.utils.sheet_to_json(wb.Sheets[nome], { header:1, defval:null, raw:true, blankrows:false });
+    visiveis.forEach(nome=>{
+      const ws = wb.Sheets[nome]; if(!ws || !ws['!ref']) return;   // abas só de gráfico não têm células
+      const aoa = XLSX.utils.sheet_to_json(ws, { header:1, defval:null, raw:true, blankrows:true });
       const t = montarTabelaDeAOA(aoa);
-      if(t) tabelas.push(Object.assign(t, { titulo: wb.SheetNames.length>1 ? nomeBase+' — '+nome : nomeBase, aba: nome, origem:'Planilha '+ext.toUpperCase() }));
+      if(t) tabelas.push(Object.assign(t, { titulo: visiveis.length>1 ? nomeBase+' — '+nome : nomeBase, aba: nome, origem:'Planilha '+ext.toUpperCase() }));
     });
     return tabelas;
   }
@@ -2477,26 +2673,25 @@ async function lerArquivoParaTabelas(file){
   if(ext==='pdf'){
     if(!window.pdfjsLib) throw new Error('Biblioteca de PDF não carregada.');
     const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
-    const linhasTxt = [], paginas = [];
-    for(let p=1; p<=pdf.numPages; p++){
-      const page = await pdf.getPage(p);
-      const content = await page.getTextContent();
-      // agrupa os pedaços de texto pela posição vertical para remontar as linhas
-      const porY = {};
-      content.items.forEach(it=>{ const y = Math.round(it.transform[5]); (porY[y] = porY[y]||[]).push(it); });
-      const ys = Object.keys(porY).map(Number).sort((a,b)=>b-a);
-      const txtPag = ys.map(y=>porY[y].sort((a,b)=>a.transform[4]-b.transform[4]).map(i=>i.str).join(' ').replace(/\s+/g,' ').trim()).filter(Boolean);
-      linhasTxt.push(...txtPag); paginas.push(txtPag.join(' '));
-    }
-    const rows = [];
-    linhasTxt.forEach(l=>{
-      const m = l.match(/^(.+?)\s+(-?[\d.]+(?:,\d+)?)\s*%?$/);
-      if(m){ const v = parseNumBR(m[2]); if(!isNaN(v) && /[a-zA-ZÀ-ú]/.test(m[1])) rows.push([m[1].trim(), v]); }
-    });
-    if(rows.length>=3) return [{ colunas:['Descrição','Valor'], linhas: rows, titulo: nomeBase, aba:'', origem:'PDF (tabela extraída)' }];
-    return [{ colunas:['Página','Conteúdo'], linhas: paginas.map((t,i)=>[i+1, t.slice(0,1500)]), titulo: nomeBase, aba:'', origem:'PDF (texto)' }];
+    const res = await pdfParaTabela(pdf);
+    const t = res.aoa ? montarTabelaDeAOA(res.aoa) : null;
+    if(t && t.colunas.length>=2) return [Object.assign(t, { titulo: nomeBase, aba:'', origem:'PDF (tabela extraída)' })];
+    if(!res.texto.some(l=>l && l.trim())) throw new Error('PDF digitalizado (imagem) — não há texto para ler; use a planilha original ou o relatório em Excel/CSV');
+    throw new Error('não foi encontrada uma tabela de dados no PDF');
   }
   throw new Error('Formato não suportado: .'+ext);
+}
+/* Texto curto que descreve o que a limpeza descartou. */
+function resumoLimpeza(L){
+  if(!L) return '';
+  const p = [];
+  if(L.titulo) p.push(`${L.titulo} linha(s) de título/cabeçalho do relatório`);
+  if(L.rodape) p.push(`${L.rodape} de rodapé/notas`);
+  if(L.repetidos) p.push(`${L.repetidos} cabeçalho(s) repetido(s)`);
+  if(L.vazias) p.push(`${L.vazias} linha(s) vazia(s)`);
+  if(L.colunasVazias) p.push(`${L.colunasVazias} coluna(s) vazia(s)`);
+  const g = L.grupos ? ` · ${L.grupos} subtítulo(s) de grupo viraram a coluna “Grupo”` : '';
+  return (p.length ? 'Ignorado: ' + p.join(', ') : 'Nada precisou ser descartado') + g + ' · imagens, logotipos e gráficos nunca são importados.';
 }
 
 /* ============================================================
@@ -2507,7 +2702,7 @@ const CARREGANDO_LINHAS = {};
 let ANALISE_CACHE = {};
 let baseSelPorArea = {};
 let verTodasLinhas = false;
-function basesDe(areaId, compId){ return STATE.bases.filter(b=>b.areaId===areaId && b.competenciaId===compId); }
+function basesDe(areaId, compId){ return STATE.bases.filter(b=>b.areaId===areaId && b.competenciaId===compId).sort((a,b)=>(Number(a.posicao)||0)-(Number(b.posicao)||0)); }
 function getBase(id){ return STATE.bases.find(b=>b.id===id) || null; }
 async function carregarLinhas(bases){
   const faltam = bases.filter(b=>!LINHAS_CACHE[b.id]);
@@ -2538,7 +2733,7 @@ async function salvarTabelaComoBase(t, areaId, compId, nomeArquivo){
   const base = { id, areaId, competenciaId: compId, titulo: t.titulo, nomeArquivo: nomeArquivo||t.titulo, origem: t.origem||'', aba: t.aba||'',
     colunas: t.colunas, nLinhas: t.linhas.length, blob:'base_'+id, partes, bytes: txt.length,
     enviadoPor: currentUser ? (currentUser.nome||currentUser.usuario) : '', enviadoEm: new Date().toISOString(),
-    incluir:true, obs:'', cfg:{ ignorarTotais:true } };
+    incluir:true, obs:'', cfg:{ ignorarTotais:true }, limpeza: t.limpeza || null, posicao: proximaPosicao(areaId, compId) };
   LINHAS_CACHE[id] = t.linhas;
   STATE.bases.push(base);
   return base;
@@ -2547,10 +2742,13 @@ async function importarArquivosArea(fileList, areaId){
   if(semPermissao('area')) return;
   const c = compSel(); if(!c) return;
   const arquivos = Array.from(fileList||[]);
+  // Só entram planilhas, CSV/TXT e PDF. Imagens (JPG, PNG...), documentos do Word, atalhos etc. são ignorados.
   const ok = arquivos.filter(f=>EXT_SUPORTADAS.includes(f.name.split('.').pop().toLowerCase()));
-  const ignorados = arquivos.length - ok.length;
-  if(!ok.length){ showToast('Nenhum arquivo suportado. Use: '+EXT_SUPORTADAS.join(', ').toUpperCase(),'warning'); return; }
-  let criadas = 0, falhas = [];
+  const nomesIgnorados = arquivos.filter(f=>!ok.includes(f)).map(f=>f.name);
+  const ignorados = nomesIgnorados.length;
+  const txtIgnorados = ignorados ? ` · ${ignorados} arquivo(s) ignorado(s) por não serem planilha/CSV/PDF (ex.: ${nomesIgnorados.slice(0,3).join(', ')}${ignorados>3?'…':''})` : '';
+  if(!ok.length){ showToast('Nenhuma planilha, CSV ou PDF na seleção — só esses formatos têm dados para importar. Formatos aceitos: '+EXT_SUPORTADAS.join(', ').toUpperCase()+txtIgnorados,'warning'); return; }
+  let criadas = 0, falhas = [], descartadas = 0;
   let perguntouAbas = false, todasAbas = true;
   for(let i=0;i<ok.length;i++){
     const f = ok[i];
@@ -2561,19 +2759,22 @@ async function importarArquivosArea(fileList, areaId){
         if(!perguntouAbas){ todasAbas = confirm(`"${f.name}" tem ${tabelas.length} abas com dados.\n\nOK = importar cada aba como uma planilha separada\nCancelar = importar só a primeira aba${ok.length>1?'\n\n(a escolha vale para os demais arquivos desta seleção)':''}`); perguntouAbas = true; }
         if(!todasAbas) tabelas = tabelas.slice(0,1);
       }
-      if(!tabelas.length){ falhas.push(f.name+' (sem dados)'); continue; }
+      tabelas = tabelas.filter(t=>t && t.linhas && t.linhas.length && t.colunas && t.colunas.length);
+      if(!tabelas.length){ falhas.push(f.name+' (não foi encontrada uma tabela de dados)'); continue; }
       for(const t of tabelas){
         if(JSON.stringify(t.linhas).length > 12e6 && !confirm(`"${t.titulo}" é muito grande (${fmtNum(t.linhas.length)} linhas). Importar mesmo assim? Pode demorar para salvar e abrir.`)) continue;
         const b = await salvarTabelaComoBase(t, areaId, c.id, f.name);
         baseSelPorArea[areaId] = b.id;
         criadas++;
+        const L = t.limpeza || {};
+        descartadas += (L.titulo||0) + (L.rodape||0) + (L.repetidos||0);
       }
-    }catch(e){ console.error(e); falhas.push(f.name+(erroPermissao(e)?' (sem permissão no banco)':'')); }
+    }catch(e){ console.error(e); falhas.push(f.name+' ('+(erroPermissao(e)?'sem permissão no banco':(e.message||'não foi possível ler'))+')'); }
   }
   if(criadas){ saveState(true); registrarAcao(`${criadas} planilha(s) importada(s) em ${(getArea(areaId)||{}).nome} (${c.rotulo})`); }
   render();
-  const msg = `${criadas} planilha(s) importada(s)` + (falhas.length?` · ${falhas.length} com erro: ${falhas.join(', ')}`:'') + (ignorados?` · ${ignorados} arquivo(s) ignorado(s)`:'');
-  showToast(msg, falhas.length ? 'warning' : 'success');
+  const msg = `${criadas} planilha(s) importada(s)` + (descartadas?` · ${descartadas} linha(s) de título, rodapé ou cabeçalho repetido ignoradas`:'') + (falhas.length?` · ${falhas.length} não importado(s): ${falhas.join('; ')}`:'') + txtIgnorados;
+  showToast(msg, (falhas.length || !criadas) ? 'warning' : 'success');
 }
 function importarColagem(areaId){
   if(semPermissao('area')) return;
@@ -2647,7 +2848,10 @@ function valorParaMes(v, nomeCol){
   if(m){ let a = Number(m[2]); if(a<100) a+=2000; return a+'-'+pad2(MESES_ABREV.indexOf(m[1])+1); }
   return null;
 }
+/* "Quantidade aprovada – Mai/2026" → "Mai/2026" (nome composto por cabeçalho em dois níveis) */
+function ultimaParteNome(nome){ const s = String(nome); return s.includes(' – ') ? s.slice(s.lastIndexOf(' – ')+3) : s; }
 function nomeColunaEhMes(nome){
+  nome = ultimaParteNome(nome);
   const s = normTxt(nome);
   return /^(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-z]*([\/\-\s.]*(de\s*)?\d{2,4})?$/.test(s) || !!valorParaMes(nome, 'competencia');
 }
@@ -2705,7 +2909,12 @@ function analisarBase(b){
   let colCat = b.cfg.categoria ? info.find(c=>c.nome===b.cfg.categoria) : (info.find(c=>c.tipo==='categoria' && c.unicos>=2 && c.unicos<=60) || info.find(c=>(c.tipo==='texto'||c.tipo==='categoria') && c.unicos>=2));
   if(colCat && colData && colCat.j===colData.j) colCat = info.find(c=>c.tipo==='categoria' && c.j!==colData.j) || null;
   // Formato "largo" do TabWin: uma coluna por mês (Jan/2026, Fev/2026...)
-  const colsMes = info.filter(c=>c.tipo==='numero' && nomeColunaEhMes(c.nome));
+  let colsMes = info.filter(c=>c.tipo==='numero' && nomeColunaEhMes(c.nome));
+  // Com dois grupos de meses (ex.: "Quantidade – Mai/2026..." e "Valor – Mai/2026..."), usa só um
+  // grupo por vez para não somar quantidade com valor: o da medida principal escolhida, ou o primeiro.
+  const prefixoCol = nome => String(nome).includes(' – ') ? String(nome).slice(0, String(nome).lastIndexOf(' – ')) : '';
+  const prefixos = [...new Set(colsMes.map(c=>prefixoCol(c.nome)))];
+  if(prefixos.length>1){ const alvo = b.cfg.valor && prefixos.includes(prefixoCol(b.cfg.valor)) ? prefixoCol(b.cfg.valor) : prefixos[0]; colsMes = colsMes.filter(c=>prefixoCol(c.nome)===alvo); }
   const dinheiro = !!colValor && (b.areaId==='fi' || /valor|receita|despesa|custo|repasse|pago|liquid|empenh|r\$/i.test(colValor.nome));
   const fmtV = v => dinheiro ? fmtMoney(v) : fmtNum(v);
   const num = (r, c) => { const v = r[c.j]; return typeof v==='number' ? v : parseNumBR(v); };
@@ -2723,7 +2932,7 @@ function analisarBase(b){
     const meses = Object.keys(g).sort();
     if(meses.length>=2) serieTempo = { labels: meses.map(rotuloMes), valores: meses.map(m=>g[m]), meses };
   } else if(colsMes.length>=3){
-    serieTempo = { labels: colsMes.map(c=>c.nome), valores: colsMes.map(c=>c.soma), meses:null };
+    serieTempo = { labels: colsMes.map(c=>ultimaParteNome(c.nome)), valores: colsMes.map(c=>c.soma), meses:null };
   }
   if(serieTempo){
     graficos.push({ chave:'tempo', tipo:'line', titulo:'Evolução no período'+(colValor&&!colsMes.length?' — '+colValor.nome:''), labels: serieTempo.labels,
@@ -2853,7 +3062,7 @@ function viewArea(areaId){
     ${pode ? `
     <div class="card no-print">
       <div class="upload-zone" id="upZone" onclick="if(event.target===this||event.target.closest('.up-click')) document.getElementById('fileArea').click()">
-        <input type="file" id="fileArea" multiple style="display:none" onchange="importarArquivosArea(this.files,'${areaId}');this.value=''">
+        <input type="file" id="fileArea" multiple accept="${EXT_SUPORTADAS.map(e=>'.'+e).join(',')}" style="display:none" onchange="importarArquivosArea(this.files,'${areaId}');this.value=''">
         <input type="file" id="folderArea" webkitdirectory directory multiple style="display:none" onchange="importarArquivosArea(this.files,'${areaId}');this.value=''">
         <span class="up-icon up-click">📂</span>
         <div class="up-title up-click">Arraste aqui ou selecione as planilhas de ${esc(area.nome)} deste quadrimestre</div>
@@ -2872,6 +3081,7 @@ function viewArea(areaId){
         <div class="actions" style="margin-top:8px;"><button class="btn" onclick="importarColagem('${areaId}')">⭱ Importar dados colados</button><button class="btn secondary" onclick="mostrarColagem=false;render()">Cancelar</button></div>
       </div>` : ''}
     </div>` : ''}
+    ${secaoSequenciaHTML(areaId, c, pode)}
     ${bases.length===0 ? `
       <div class="card" style="text-align:center;padding:40px 20px;">
         <div style="font-size:42px;opacity:.6;">📭</div>
@@ -2890,6 +3100,7 @@ function viewArea(areaId){
       </div>
     </div>
     ${sel ? (prontas ? detalheBaseHTML(sel, area, pode) : '<div class="card" style="text-align:center;padding:30px;"><div class="spinner" style="margin:0 auto 10px;"></div>Carregando a planilha da nuvem…</div>') : ''}`}
+    ${secaoFigurasHTML(areaId, c, pode)}
   `;
 }
 function detalheBaseHTML(b, area, pode){
@@ -2904,6 +3115,7 @@ function detalheBaseHTML(b, area, pode){
       <div style="flex:1;min-width:220px;">
         ${pode ? `<input value="${esc(b.titulo)}" onchange="setBaseCampo('${b.id}','titulo',this.value)" title="Clique para renomear" style="font-weight:800;font-size:15px;border:1px dashed transparent;background:transparent;width:100%;padding:2px 4px;border-radius:6px;font-family:inherit;color:var(--ink);" onfocus="this.style.borderColor='var(--brand)';this.style.background='#fff'" onblur="this.style.borderColor='transparent';this.style.background='transparent'">` : `<div class="bh-title">${esc(b.titulo)}</div>`}
         <div class="bh-meta">Arquivo: ${esc(b.nomeArquivo)}${b.aba?' · aba '+esc(b.aba):''} · ${esc(b.origem)} · ${fmtNum(b.nLinhas)} linhas · importado por ${esc(b.enviadoPor||'—')} em ${new Date(b.enviadoEm).toLocaleString('pt-BR')}</div>
+        ${b.limpeza?`<div class="bh-meta" style="margin-top:3px;">🧹 ${esc(resumoLimpeza(b.limpeza))}</div>`:''}
       </div>
       <div class="actions no-print">
         <button class="btn secondary small" onclick="baixarBase('${b.id}','xlsx')">⭳ Excel</button>
@@ -3226,6 +3438,319 @@ function marcarSemAuditoria(v){
 }
 
 /* ============================================================
+   IMAGENS E FIGURAS POR ÁREA (prints de sistemas, mapas, fotos,
+   gráficos prontos, tabelas copiadas do Word/Excel/PowerPoint...)
+   - Colar (Ctrl+V) de qualquer programa, arrastar ou selecionar arquivos.
+   - Formatos: PNG, JPG/JPEG/JFIF, GIF, WEBP, BMP, SVG, ICO, AVIF, TIFF
+     (scanners), HEIC/HEIF (fotos de iPhone) e PDF (cada página vira uma imagem).
+   - Cada imagem é reduzida para no máximo 2000 px e gravada na nuvem em
+     documentos próprios ("blobs"), ligada à área e à competência.
+   - Entram na apresentação (um slide por imagem), no PowerPoint e no
+     Relatório do Quadrimestre, com legenda e fonte.
+   ============================================================ */
+const EXT_IMAGEM = ['png','jpg','jpeg','jfif','pjpeg','gif','webp','bmp','svg','ico','avif','tif','tiff','heic','heif','pdf'];
+const MAX_PAGINAS_PDF_FIGURA = 15;
+function figurasDe(areaId, compId){
+  return (STATE.figuras||[]).filter(f=>f.areaId===areaId && f.competenciaId===compId).sort((a,b)=>(Number(a.posicao)||0)-(Number(b.posicao)||0));
+}
+
+/* ============================================================
+   SEQUÊNCIA LIVRE DA ÁREA (planilhas + imagens)
+   Planilhas e imagens de uma área/competência compartilham um único campo
+   "posicao". O usuário decide a ordem — intercalando, planilhas primeiro,
+   imagens primeiro — e a apresentação, o PowerPoint e o relatório seguem.
+   ============================================================ */
+function itensDaArea(areaId, compId){
+  const bs = STATE.bases.filter(b=>b.areaId===areaId && b.competenciaId===compId).map(b=>({ tipo:'base', id:b.id, obj:b }));
+  const fs = (STATE.figuras||[]).filter(f=>f.areaId===areaId && f.competenciaId===compId).map(f=>({ tipo:'figura', id:f.id, obj:f }));
+  return bs.concat(fs).sort((a,b)=>((Number(a.obj.posicao)||0)-(Number(b.obj.posicao)||0)) || (a.tipo===b.tipo ? 0 : a.tipo==='base' ? -1 : 1));
+}
+function proximaPosicao(areaId, compId){ return Math.max(0, ...itensDaArea(areaId, compId).map(i=>Number(i.obj.posicao)||0)) + 1; }
+function renumerarItens(lista){ lista.forEach((it,i)=>{ it.obj.posicao = i+1; }); }
+function moverItemArea(areaId, id, delta){
+  if(semPermissao('area')) return;
+  const lista = itensDaArea(areaId, compSel().id);
+  const i = lista.findIndex(it=>it.id===id), j = i+delta;
+  if(i<0 || j<0 || j>=lista.length) return;
+  const [it] = lista.splice(i,1); lista.splice(j,0,it);
+  renumerarItens(lista); saveState(false); render();
+}
+/* Arrastar e soltar: coloca o item arrastado no lugar do item de destino. */
+function moverItemPara(areaId, idOrigem, idDestino){
+  if(semPermissao('area') || idOrigem===idDestino) return;
+  const lista = itensDaArea(areaId, compSel().id);
+  const i = lista.findIndex(it=>it.id===idOrigem), j = lista.findIndex(it=>it.id===idDestino);
+  if(i<0 || j<0) return;
+  const [it] = lista.splice(i,1); lista.splice(j,0,it);
+  renumerarItens(lista); saveState(false); render();
+}
+function organizarItensArea(areaId, modo){
+  if(semPermissao('area')) return;
+  const lista = itensDaArea(areaId, compSel().id);
+  const bs = lista.filter(i=>i.tipo==='base'), fs = lista.filter(i=>i.tipo==='figura');
+  let nova;
+  if(modo==='planilhas') nova = bs.concat(fs);
+  else if(modo==='imagens') nova = fs.concat(bs);
+  else { nova = []; for(let k=0;k<Math.max(bs.length, fs.length);k++){ if(bs[k]) nova.push(bs[k]); if(fs[k]) nova.push(fs[k]); } }
+  renumerarItens(nova); saveState(false); render();
+  showToast(modo==='planilhas' ? 'Planilhas primeiro, depois as imagens.' : modo==='imagens' ? 'Imagens primeiro, depois as planilhas.' : 'Planilhas e imagens intercaladas.', 'success');
+}
+let arrastandoItemId = null;
+function secaoSequenciaHTML(areaId, c, pode){
+  const itens = itensDaArea(areaId, c.id);
+  if(itens.length < 2) return '';
+  const nB = itens.filter(i=>i.tipo==='base').length, nF = itens.length - nB;
+  return `
+    <div class="card no-print" id="sequenciaArea">
+      <div class="flexrow" style="margin-bottom:6px;">
+        <h2 style="margin:0;">🧭 Sequência na apresentação <span class="badge azul" style="margin-left:6px;">${nB} planilha(s) · ${nF} imagem(ns)</span></h2>
+        ${pode && nB && nF ? `<div class="actions">
+          <button class="btn secondary small" onclick="organizarItensArea('${areaId}','planilhas')" title="Todas as planilhas e depois todas as imagens">📄→🖼️ Planilhas primeiro</button>
+          <button class="btn secondary small" onclick="organizarItensArea('${areaId}','imagens')" title="Todas as imagens e depois todas as planilhas">🖼️→📄 Imagens primeiro</button>
+          <button class="btn secondary small" onclick="organizarItensArea('${areaId}','intercalar')" title="Uma planilha, uma imagem, uma planilha...">🔀 Intercalar</button>
+        </div>` : ''}
+      </div>
+      <div class="subtitle">${pode ? '<b>Arraste</b> os itens (ou use ▲▼) para escolher a ordem em que planilhas e imagens aparecem nos slides, no PowerPoint e no Relatório do Quadrimestre.' : 'Ordem em que planilhas e imagens aparecem nos slides e no relatório.'}</div>
+      <div class="seq-lista">
+        ${itens.map((it,i)=>{
+          const o = it.obj, eBase = it.tipo==='base';
+          const incl = eBase ? o.incluir : o.incluir;
+          const src = !eBase ? imgSrc(o.img) : '';
+          return `<div class="seq-item ${incl?'':'fora'}" ${pode?`draggable="true" ondragstart="arrastandoItemId='${it.id}';this.classList.add('arrastando');event.dataTransfer.effectAllowed='move';event.dataTransfer.setData('text/plain','${it.id}')" ondragend="this.classList.remove('arrastando')" ondragover="event.preventDefault();this.classList.add('alvo')" ondragleave="this.classList.remove('alvo')" ondrop="event.preventDefault();event.stopPropagation();this.classList.remove('alvo');if(arrastandoItemId) moverItemPara('${areaId}', arrastandoItemId, '${it.id}');arrastandoItemId=null;"`:''}>
+            ${pode?'<span class="seq-alca" title="Arraste para mudar a ordem">⠿</span>':''}
+            <span class="seq-num">${pad2(i+1)}</span>
+            <span class="seq-ic">${eBase ? '📄' : (src ? `<img src="${esc(src)}" alt="">` : '🖼️')}</span>
+            <div class="seq-txt"><b>${esc(eBase ? o.titulo : (o.legenda || 'Imagem sem legenda'))}</b><div class="muted">${eBase ? `Planilha · ${fmtNum(o.nLinhas)} linhas` : `Imagem${o.fonte?' · Fonte: '+esc(o.fonte):''}`}${incl?'':' · <b>fora da apresentação</b>'}</div></div>
+            <span class="badge ${eBase?'azul':'roxo'}">${eBase?'Planilha':'Imagem'}</span>
+            ${pode?`<button class="btn ghost small" title="Subir" ${i===0?'disabled':''} onclick="moverItemArea('${areaId}','${it.id}',-1)">▲</button><button class="btn ghost small" title="Descer" ${i===itens.length-1?'disabled':''} onclick="moverItemArea('${areaId}','${it.id}',1)">▼</button>`:''}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+}
+function getFigura(id){ return (STATE.figuras||[]).find(f=>f.id===id) || null; }
+const CARREGANDO_IMG = {};
+async function carregarImagens(ids){
+  await Promise.all(ids.filter(id=>id && !IMG_CACHE[id] && STATE.imagens[id]).map(id=>{
+    if(!CARREGANDO_IMG[id]) CARREGANDO_IMG[id] = blobLer(id, STATE.imagens[id].partes).then(d=>{ IMG_CACHE[id] = d; }).catch(e=>console.warn('Imagem não encontrada:', id, e)).finally(()=>{ delete CARREGANDO_IMG[id]; });
+    return CARREGANDO_IMG[id];
+  }));
+}
+/* Igual ao linhasProntas: se faltar baixar alguma imagem, baixa e redesenha a tela. */
+function figurasProntas(figs){
+  const faltam = figs.map(f=>f.img).filter(id=>id && !IMG_CACHE[id] && STATE.imagens[id]);
+  if(!faltam.length) return true;
+  const viewAntes = currentView;
+  carregarImagens(faltam).then(()=>{ if(currentView===viewAntes) render(); });
+  return false;
+}
+function carregarScript(src, globalNome){
+  if(window[globalNome]) return Promise.resolve();
+  return new Promise((res, rej)=>{ const s = document.createElement('script'); s.src = src; s.onload = ()=>res(); s.onerror = ()=>rej(new Error('não foi possível baixar o conversor (verifique a internet)')); document.head.appendChild(s); });
+}
+function extDoArquivo(f){ return String(f.name||'').split('.').pop().toLowerCase(); }
+function ehArquivoImagem(f){ return (f.type && f.type.startsWith('image/')) || EXT_IMAGEM.includes(extDoArquivo(f)); }
+function canvasParaDataUrl(canvas){ const p = canvas.toDataURL('image/png'); return p.length > 350000 ? canvas.toDataURL('image/jpeg', 0.9) : p; }
+/* Converte qualquer arquivo de imagem aceito em uma ou mais imagens (dataURL) prontas para gravar. */
+async function arquivoParaImagens(file){
+  const ext = extDoArquivo(file);
+  const tipo = (file.type||'').toLowerCase();
+  if(ext==='pdf' || tipo==='application/pdf'){
+    if(!window.pdfjsLib) throw new Error('biblioteca de PDF não carregada');
+    const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+    const n = Math.min(pdf.numPages, MAX_PAGINAS_PDF_FIGURA), saida = [];
+    for(let p=1; p<=n; p++){
+      const page = await pdf.getPage(p);
+      const vp = page.getViewport({ scale: 2 });
+      const cv = document.createElement('canvas'); cv.width = vp.width; cv.height = vp.height;
+      const ctx = cv.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0,0,cv.width,cv.height);
+      await page.render({ canvasContext: ctx, viewport: vp }).promise;
+      saida.push({ dataUrl: canvasParaDataUrl(cv), nome: pdf.numPages>1 ? `${file.name} — página ${p}` : file.name });
+    }
+    return saida;
+  }
+  if(['tif','tiff'].includes(ext) || tipo==='image/tiff'){
+    await carregarScript('https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js', 'pako');
+    await carregarScript('https://cdn.jsdelivr.net/npm/utif@3.1.0/UTIF.js', 'UTIF');
+    const buf = await file.arrayBuffer();
+    const ifds = UTIF.decode(buf).filter(i=>i.width || i.t256);
+    if(!ifds.length) throw new Error('TIFF sem imagem legível');
+    return ifds.slice(0, MAX_PAGINAS_PDF_FIGURA).map((ifd, k)=>{
+      UTIF.decodeImage(buf, ifd);
+      const rgba = UTIF.toRGBA8(ifd);
+      const cv = document.createElement('canvas'); cv.width = ifd.width; cv.height = ifd.height;
+      const ctx = cv.getContext('2d'); const im = ctx.createImageData(ifd.width, ifd.height); im.data.set(rgba); ctx.putImageData(im, 0, 0);
+      return { dataUrl: canvasParaDataUrl(cv), nome: ifds.length>1 ? `${file.name} — página ${k+1}` : file.name };
+    });
+  }
+  if(['heic','heif'].includes(ext) || tipo==='image/heic' || tipo==='image/heif'){
+    await carregarScript('https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js', 'heic2any');
+    let blob = await heic2any({ blob: file, toType:'image/jpeg', quality: 0.9 });
+    if(Array.isArray(blob)) blob = blob[0];
+    return [{ dataUrl: await lerArquivoComoDataUrl(blob), nome: file.name }];
+  }
+  return [{ dataUrl: await lerArquivoComoDataUrl(file), nome: file.name }];
+}
+let importandoFiguras = false;
+async function adicionarFiguras(arquivos, areaId){
+  if(semPermissao('area')) return;
+  const c = compSel(); if(!c || !areaId) return;
+  const lista = Array.from(arquivos||[]);
+  const imgs = lista.filter(ehArquivoImagem);
+  const recusados = lista.filter(f=>!ehArquivoImagem(f)).map(f=>f.name||'arquivo');
+  if(!imgs.length){ showToast('Nenhuma imagem encontrada. Formatos aceitos: '+EXT_IMAGEM.join(', ').toUpperCase()+'.','warning'); return; }
+  if(importandoFiguras){ showToast('Aguarde: ainda estou gravando as imagens anteriores.','warning'); return; }
+  importandoFiguras = true;
+  let ok = 0; const falhas = [];
+  try{
+    for(let i=0;i<imgs.length;i++){
+      const f = imgs[i];
+      showToast(`(${i+1}/${imgs.length}) Preparando ${f.name||'imagem colada'}…`);
+      try{
+        const partes = await arquivoParaImagens(f);
+        for(const p of partes){
+          const dataUrl = await comprimirImagem(p.dataUrl, 2000, false);
+          const imgId = await imgGuardar(dataUrl, 'figura');
+          const dims = await dimsImagem(dataUrl);
+          STATE.figuras.push({ id: 'fg'+uid(), areaId, competenciaId: c.id, img: imgId, posicao: proximaPosicao(areaId, c.id),
+            legenda: String(p.nome||'').replace(/\.(png|jpe?g|jfif|pjpeg|gif|webp|bmp|svg|ico|avif|tiff?|heic|heif|pdf)(?= —|$)/i,''), fonte:'', incluir:true,
+            largura: dims ? dims.w : null, altura: dims ? dims.h : null, arquivo: p.nome||'',
+            enviadoPor: currentUser ? (currentUser.nome||currentUser.usuario) : '', enviadoEm: new Date().toISOString() });
+          ok++;
+        }
+      }catch(e){ console.error(e); falhas.push((f.name||'imagem')+' ('+(e.message||'formato não reconhecido')+')'); }
+    }
+  } finally { importandoFiguras = false; }
+  if(ok){ saveState(true); registrarAcao(`${ok} imagem(ns) adicionada(s) em ${(getArea(areaId)||{}).nome} (${c.rotulo})`); }
+  render();
+  showToast(`${ok} imagem(ns) adicionada(s)` + (falhas.length?` · não foi possível ler: ${falhas.join('; ')}`:'') + (recusados.length?` · ignorado(s) por não serem imagem: ${recusados.slice(0,3).join(', ')}${recusados.length>3?'…':''}`:''), (falhas.length||recusados.length||!ok)?'warning':'success');
+}
+/* Colar (Ctrl+V): aceita imagem copiada de qualquer programa — print da tela, Word, Excel,
+   PowerPoint, navegador, WhatsApp Web, Paint... Se vier só o endereço de uma imagem da
+   internet, tenta baixá-la. */
+async function colarFiguras(ev, areaId){
+  const dt = ev.clipboardData; if(!dt) return false;
+  const arquivos = [];
+  Array.from(dt.items||[]).forEach(it=>{ if(it.kind==='file'){ const f = it.getAsFile(); if(f && ehArquivoImagem(f)) arquivos.push(f.name && f.name!=='image.png' ? f : new File([f], 'Imagem colada.'+((f.type||'image/png').split('/')[1]||'png'), { type: f.type||'image/png' })); } });
+  if(!arquivos.length){
+    const html = dt.getData('text/html') || '';
+    const urls = [...html.matchAll(/<img[^>]+src="([^"]+)"/gi)].map(m=>m[1].replace(/&amp;/g,'&'));
+    const txt = (dt.getData('text/plain')||'').trim();
+    if(!urls.length && /^(https?:|data:image)/i.test(txt)) urls.push(txt);
+    for(const u of urls.slice(0, 20)){
+      try{ const b = await (await fetch(u)).blob(); if(b.type.startsWith('image/')) arquivos.push(new File([b], 'Imagem colada.'+(b.type.split('/')[1]||'png'), { type:b.type })); }
+      catch(e){ showToast('Não consegui copiar a imagem deste site (o site bloqueia). Salve a imagem no computador e use “Selecionar imagens”.','warning'); }
+    }
+  }
+  if(!arquivos.length) return false;
+  ev.preventDefault();
+  await adicionarFiguras(arquivos, areaId);
+  return true;
+}
+document.addEventListener('paste', ev=>{
+  if(viewBase(currentView)!=='area' || !podeEditar('area')) return;
+  const alvo = ev.target;
+  const emCampo = alvo && (alvo.tagName==='INPUT' || alvo.tagName==='TEXTAREA') && !alvo.classList.contains('fig-paste');
+  if(emCampo) return;   // colar texto em campos continua normal
+  colarFiguras(ev, currentView.split(':')[1]);
+});
+function setFiguraCampo(id, campo, valor){
+  if(semPermissao('area')){ render(); return; }
+  const f = getFigura(id); if(!f) return;
+  f[campo] = typeof valor==='string' ? valor.trim() : valor;
+  saveState(false);
+  if(campo==='incluir') render();
+}
+function moverFigura(id, delta){
+  if(semPermissao('area')) return;
+  const f = getFigura(id); if(!f) return;
+  const lista = figurasDe(f.areaId, f.competenciaId); const i = lista.indexOf(f), j = i+delta;
+  if(j<0 || j>=lista.length) return;
+  lista.forEach((x,k)=>x.ordem = k+1);
+  const t = lista[i].ordem; lista[i].ordem = lista[j].ordem; lista[j].ordem = t;
+  saveState(false); render();
+}
+function excluirFigura(id){
+  if(semPermissao('area')) return;
+  const f = getFigura(id); if(!f) return;
+  if(!confirm(`Excluir a imagem "${f.legenda||'sem legenda'}"? Ela será apagada da nuvem.`)) return;
+  STATE.figuras = STATE.figuras.filter(x=>x.id!==id);
+  registrarAcao('Imagem excluída: '+(f.legenda||f.arquivo||''));
+  saveState(true); render(); imgLimparOrfas();
+}
+function baixarFigura(id){
+  const f = getFigura(id); const src = f && imgSrc(f.img); if(!src) return;
+  const ext = (src.match(/^data:image\/(\w+)/)||[])[1] || 'png';
+  const a = document.createElement('a'); a.href = src; a.download = nomeArquivoSeguro(f.legenda||'imagem')+'.'+(ext==='jpeg'?'jpg':ext);
+  document.body.appendChild(a); a.click(); a.remove();
+}
+function ampliarFigura(id){
+  const f = getFigura(id); const src = f && imgSrc(f.img); if(!src) return;
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(10,15,24,.92);z-index:950;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;cursor:zoom-out;';
+  ov.innerHTML = `<img src="${esc(src)}" style="max-width:100%;max-height:calc(100% - 50px);object-fit:contain;background:#fff;border-radius:6px;"><div style="color:#fff;margin-top:12px;font-size:14px;text-align:center;">${esc(f.legenda||'')}${f.fonte?` <span style="opacity:.7">— Fonte: ${esc(f.fonte)}</span>`:''}</div>`;
+  const fechar = ()=>{ ov.remove(); document.removeEventListener('keydown', esc_); };
+  const esc_ = e=>{ if(e.key==='Escape') fechar(); };
+  ov.onclick = fechar; document.addEventListener('keydown', esc_);
+  document.body.appendChild(ov);
+}
+function secaoFigurasHTML(areaId, c, pode){
+  const figs = figurasDe(areaId, c.id);
+  const prontas = figurasProntas(figs);
+  const area = getArea(areaId) || {};
+  const aceita = EXT_IMAGEM.map(e=>'.'+e).join(',') + ',image/*';
+  return `
+    <div class="card" id="figurasArea">
+      <div class="flexrow" style="margin-bottom:6px;">
+        <h2 style="margin:0;">🖼️ Imagens e figuras — ${esc(area.nome||'')} <span class="badge azul" style="margin-left:6px;">${figs.length}</span></h2>
+        ${pode?`<div class="actions no-print">
+          <button class="btn" onclick="document.getElementById('figFile').click()">🖼️ Selecionar imagens</button>
+          <input type="file" id="figFile" multiple accept="${aceita}" style="display:none" onchange="adicionarFiguras(this.files,'${areaId}');this.value=''">
+        </div>`:''}
+      </div>
+      <div class="subtitle">Prints de sistemas (e-SUS, SISAB, TabNet, Fiorilli…), mapas, fotos de ações, gráficos prontos, tabelas copiadas do Word/Excel/PowerPoint. Cada imagem vira um slide da apresentação, com a legenda e a fonte. A posição de cada imagem entre as planilhas é escolhida no quadro <b>🧭 Sequência na apresentação</b>.</div>
+      ${pode?`
+      <div class="upload-zone no-print" id="figZone" tabindex="0" style="padding:18px;outline:none;" onclick="if(event.target===this) this.focus()">
+        <span class="up-icon" style="font-size:30px;">📋</span>
+        <div class="up-title">Copie uma imagem e aperte <b>Ctrl + V</b> nesta tela — ou arraste as imagens para cá</div>
+        <div class="up-sub">Dica: <b>Windows + Shift + S</b> recorta qualquer parte da tela (um relatório do e-SUS, um gráfico do SISAB…) e já copia a imagem.</div>
+        <div class="formats"><span>PNG</span><span>JPG</span><span>GIF</span><span>WEBP</span><span>BMP</span><span>SVG</span><span>TIFF</span><span>HEIC (iPhone)</span><span>ICO</span><span>AVIF</span><span>PDF</span></div>
+      </div>`:''}
+      ${figs.length===0 ? `<div class="muted" style="text-align:center;padding:18px;font-size:12.5px;">Nenhuma imagem neste quadrimestre.</div>` :
+        !prontas ? `<div style="text-align:center;padding:20px;"><div class="spinner" style="margin:0 auto 8px;"></div>Carregando as imagens da nuvem…</div>` : `
+      <div class="grid cards" style="margin-top:14px;">
+        ${figs.map((f,i)=>`
+          <div class="fig-card ${f.incluir?'':'fora'}">
+            <div class="fig-thumb" onclick="ampliarFigura('${f.id}')" title="Clique para ampliar">${imgSrc(f.img)?`<img src="${esc(imgSrc(f.img))}" alt="${esc(f.legenda)}">`:'<span class="muted">imagem indisponível</span>'}</div>
+            ${pode ? `
+              <input class="fig-in" value="${esc(f.legenda)}" placeholder="Legenda (título do slide)" onchange="setFiguraCampo('${f.id}','legenda',this.value)">
+              <input class="fig-in" value="${esc(f.fonte)}" placeholder="Fonte (ex.: e-SUS APS, SISAB, set/2026)" onchange="setFiguraCampo('${f.id}','fonte',this.value)" style="font-size:11.5px;">
+              <div class="actions" style="gap:4px;margin-top:6px;">
+                <label class="check" style="font-size:11.5px;margin-right:auto;"><input type="checkbox" ${f.incluir?'checked':''} onchange="setFiguraCampo('${f.id}','incluir',this.checked)"> na apresentação</label>
+                <button class="btn ghost small" title="Baixar" onclick="baixarFigura('${f.id}')">⭳</button>
+                <button class="btn ghost small" title="Excluir" onclick="excluirFigura('${f.id}')">🗑</button>
+              </div>` : `
+              <div style="font-weight:700;font-size:12.5px;margin-top:8px;">${esc(f.legenda)||'<span class="muted">Sem legenda</span>'}</div>
+              ${f.fonte?`<div class="muted" style="font-size:11px;">Fonte: ${esc(f.fonte)}</div>`:''}
+              <div class="actions" style="margin-top:4px;"><button class="btn ghost small" onclick="baixarFigura('${f.id}')">⭳ Baixar</button></div>`}
+          </div>`).join('')}
+      </div>`}
+    </div>`;
+}
+function ligarArrastarFiguras(areaId){
+  const z = document.getElementById('figZone'); if(!z) return;
+  z.addEventListener('dragover', e=>{ e.preventDefault(); z.classList.add('drag'); });
+  z.addEventListener('dragleave', ()=>z.classList.remove('drag'));
+  z.addEventListener('drop', async e=>{
+    e.preventDefault(); z.classList.remove('drag');
+    if(e.dataTransfer.files.length) return adicionarFiguras(e.dataTransfer.files, areaId);
+    // imagem arrastada direto de outra aba do navegador
+    const u = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
+    if(u){ try{ const b = await (await fetch(u.trim())).blob(); if(b.type.startsWith('image/')) return adicionarFiguras([new File([b], 'Imagem da internet.'+(b.type.split('/')[1]||'png'), {type:b.type})], areaId); }catch(err){} showToast('Não consegui baixar essa imagem do site. Salve-a no computador e arraste o arquivo.','warning'); }
+  });
+}
+
+/* ============================================================
    PAINEL DA AUDIÊNCIA (dashboard da competência em exibição)
    ============================================================ */
 function checklistPreparacao(c){
@@ -3328,11 +3853,19 @@ function montarSlides(c){
   if(ap.areas){
     areasAtivas().forEach(a=>{
       if(ap.areasIncluidas[a.id]===false) return;
-      const bs = basesDe(a.id, c.id).filter(b=>b.incluir);
-      if(!bs.length) return;
+      // Sequência livre da área: planilhas e imagens na ordem escolhida pelo usuário
+      const itens = itensDaArea(a.id, c.id).filter(it=> it.tipo==='base' ? it.obj.incluir : (ap.figuras && it.obj.incluir && imgSrc(it.obj.img)));
+      const nBs = itens.filter(it=>it.tipo==='base').length, nFg = itens.length - nBs;
+      if(!itens.length) return;
       secoes.push(a.icone+' '+a.nome);
-      slides.push({ tipo:'secao', icone:a.icone, titulo:a.nome, sub:`${bs.length} base(s) de dados · ${c.rotulo}`, cor:a.cor });
-      bs.forEach(b=>{
+      slides.push({ tipo:'secao', icone:a.icone, titulo:a.nome, sub:[nBs?`${nBs} base(s) de dados`:'', nFg?`${nFg} imagem(ns)`:'', c.rotulo].filter(Boolean).join(' · '), cor:a.cor });
+      itens.forEach(it=>{
+        if(it.tipo==='figura'){
+          const f = it.obj;
+          slides.push({ tipo:'imagem', icone:'🖼️', titulo: f.legenda || 'Figura', sub: f.fonte ? 'Fonte: '+f.fonte : '', tag:'Imagem', cor:a.cor, img:f.img });
+          return;
+        }
+        const b = it.obj;
         if(!LINHAS_CACHE[b.id]) return;
         const an = analisarBase(b);
         slides.push({ tipo:'kpis', icone:'📄', titulo:b.titulo, tag:'Números', cor:a.cor, kpis: an.kpis.slice(0,8) });
@@ -3443,6 +3976,9 @@ function slideHTML(s, idx, total, c){
     corpo = (s.sub?`<div style="font-size:1.1cqw;color:#8793A6;margin:-.6cqw 0 .6cqw;">${esc(s.sub)}</div>`:'') + graficoSlideHTML(s.spec);
   } else if(s.tipo==='texto'){
     corpo = `<div class="sl-text" ${s.pauta?'style="font-size:2cqw;"':''}>${s.itens.length?`<ul>${s.itens.map(i=>`<li>${i}</li>`).join('')}</ul>`:''}${s.destaque?`<div class="highlight">${s.destaque}</div>`:''}</div>`;
+  } else if(s.tipo==='imagem'){
+    const src = imgSrc(s.img);
+    corpo = `<div style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;">${src?`<img src="${esc(src)}" alt="${esc(s.titulo)}" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:.4cqw;">`:'<span style="color:#8793A6">imagem indisponível</span>'}</div>${s.sub?`<div style="font-size:1.05cqw;color:#8793A6;text-align:right;margin-top:.5cqw;font-style:italic;">${esc(s.sub)}</div>`:''}`;
   } else if(s.tipo==='tabela'){
     corpo = `<table><thead><tr>${s.colunas.map(c=>`<th style="background:${esc(cor)}">${esc(c)}</th>`).join('')}</tr></thead><tbody>${s.linhas.map(l=>`<tr>${l.map((v,j)=>{
       let st = ''; if(s.situacaoCol===j){ st = /Atingida/.test(v)?'color:#2E8B57;font-weight:700':/Abaixo/.test(v)?'color:#C1483F;font-weight:700':'color:#8793A6'; }
@@ -3463,10 +3999,16 @@ function basesDaApresentacao(c){
   if(!ap.areas) return [];
   return STATE.bases.filter(b=>b.competenciaId===c.id && b.incluir && ap.areasIncluidas[b.areaId]!==false && (getArea(b.areaId)||{}).ativo!==false);
 }
+function figurasDaApresentacao(c){
+  const ap = STATE.apresentacao;
+  if(!ap.areas || !ap.figuras) return [];
+  return (STATE.figuras||[]).filter(f=>f.competenciaId===c.id && f.incluir && ap.areasIncluidas[f.areaId]!==false && (getArea(f.areaId)||{}).ativo!==false);
+}
 function viewApresentacao(){
   const c = compSel(); const ap = STATE.apresentacao; const pode = podeEditar('apresentacao');
   const bases = basesDaApresentacao(c);
-  if(!linhasProntas(bases)) return `<div class="card" style="text-align:center;padding:40px;"><div class="spinner" style="margin:0 auto 12px;"></div>Carregando as planilhas do ${esc(c.rotulo)} para montar os slides…</div>`;
+  const okImgs = figurasProntas(figurasDaApresentacao(c));
+  if(!linhasProntas(bases) || !okImgs) return `<div class="card" style="text-align:center;padding:40px;"><div class="spinner" style="margin:0 auto 12px;"></div>Carregando as planilhas e imagens do ${esc(c.rotulo)} para montar os slides…</div>`;
   const slides = montarSlides(c);
   const ck = (k, rot) => `<label class="check"><input type="checkbox" ${ap[k]?'checked':''} ${pode?'':'disabled'} onchange="setApresentacao('${k}', this.checked)"> ${rot}</label>`;
   return `
@@ -3484,7 +4026,7 @@ function viewApresentacao(){
       <h3>⚙️ O que entra na apresentação</h3>
       ${!pode?'<div class="read-only-notice">Seu perfil pode apresentar e baixar, mas não alterar estas opções.</div>':''}
       <div class="actions" style="gap:16px;">
-        ${ck('capa','Capa')}${ck('baseLegal','Base legal (LC 141)')}${ck('pauta','Pauta')}${ck('areas','Áreas temáticas (planilhas)')}${ck('indicadores','Indicadores e metas')}${ck('financeiro','Aplicação em saúde')}${ck('auditorias','Auditorias')}${ck('encerramento','Encerramento')}
+        ${ck('capa','Capa')}${ck('baseLegal','Base legal (LC 141)')}${ck('pauta','Pauta')}${ck('areas','Áreas temáticas (planilhas)')}${ck('figuras','Imagens e figuras das áreas')}${ck('indicadores','Indicadores e metas')}${ck('financeiro','Aplicação em saúde')}${ck('auditorias','Auditorias')}${ck('encerramento','Encerramento')}
       </div>
       <div class="actions" style="gap:16px;margin-top:10px;">
         ${ck('interpretacao','Análise automática de cada planilha')}${ck('tabelas','Tabela com os dados de cada planilha')}
@@ -3508,6 +4050,7 @@ let PRES = { slides:[], i:0, comp:null, graficos:[] };
 async function abrirApresentacao(inicio){
   const c = compSel();
   await carregarLinhas(basesDaApresentacao(c));
+  await carregarImagens(figurasDaApresentacao(c).map(f=>f.img));
   PRES = { slides: montarSlides(c), i: Math.max(0, inicio||0), comp: c, graficos: [] };
   if(!PRES.slides.length){ showToast('Nenhum slide para apresentar — marque ao menos uma seção.','warning'); return; }
   document.getElementById('presenter').classList.add('open');
@@ -3590,11 +4133,13 @@ async function gerarPowerPoint(){
   showToast('Gerando o PowerPoint…');
   try{
     await carregarLinhas(basesDaApresentacao(c));
+    await carregarImagens(figurasDaApresentacao(c).map(f=>f.img));
     const slides = montarSlides(c);
     const T = textoInstitucional(c);
     const corCab = String(T.h.cor||'#1E5AA8').replace('#','');
     const logos = logosDoCab(T.h).map(l=>imgSrc(l.img));
     const dims = {}; for(const s of logos.concat([T.esq, T.dir])) if(s) dims[s] = await dimsImagem(s);
+    for(const s of slides) if(s.tipo==='imagem' && imgSrc(s.img)) dims[imgSrc(s.img)] = await dimsImagem(imgSrc(s.img));
     const pptx = new PptxGenJS();
     pptx.layout = 'LAYOUT_WIDE';
     pptx.title = `${T.titulo} — ${c.rotulo}`;
@@ -3687,6 +4232,10 @@ async function gerarPowerPoint(){
         const temDest = !!s.destaque;
         if(runs.length) sl.addText(runs, { x:0.5, y:Y0+0.1, w:W-1.0, h: temDest ? H0-1.4 : H0-0.1, valign:'top', fontFace:FONTE, fit:'shrink' });
         if(temDest) sl.addText(htmlParaRuns(s.destaque, { fontSize:13, color:'7A4E17' }), { x:0.5, y: runs.length ? 5.55 : Y0+0.2, w:W-1.0, h: runs.length ? 1.3 : 2, fill:{color:'FFF7E6'}, line:{color:'FFD591', width:0.75}, fontFace:FONTE, valign:'middle', fit:'shrink' });
+      } else if(s.tipo==='imagem'){
+        const src = imgSrc(s.img);
+        if(src){ const bx = caixaContain(dims[src], 0.5, Y0+0.1, W-1.0, s.sub ? H0-0.55 : H0-0.15); sl.addImage(Object.assign({ data: src }, bx)); }
+        if(s.sub) sl.addText(s.sub, { x:0.5, y:Y0+H0-0.4, w:W-1.0, h:0.3, fontSize:10, italic:true, color:'8793A6', align:'right', fontFace:FONTE, margin:0 });
       } else if(s.tipo==='tabela'){
         const larg = s.larguras || s.colunas.map(()=>(W-0.8)/s.colunas.length);
         const soma = larg.reduce((a,b)=>a+b,0); const colW = larg.map(l=>l*(W-0.8)/soma);
@@ -3715,7 +4264,9 @@ async function gerarPowerPoint(){
 function viewRelQuadrimestre(){
   const c = compSel(); const e = STATE.entidade;
   const bases = STATE.bases.filter(b=>b.competenciaId===c.id);
-  if(!linhasProntas(bases)) return `<div class="card" style="text-align:center;padding:40px;"><div class="spinner" style="margin:0 auto 12px;"></div>Carregando as planilhas do ${esc(c.rotulo)}…</div>`;
+  const figsRel = (STATE.figuras||[]).filter(x=>x.competenciaId===c.id && x.incluir);
+  const okImgs = figurasProntas(figsRel);
+  if(!linhasProntas(bases) || !okImgs) return `<div class="card" style="text-align:center;padding:40px;"><div class="spinner" style="margin:0 auto 12px;"></div>Carregando as planilhas e imagens do ${esc(c.rotulo)}…</div>`;
   const f = finDe(c.id) || {}; const pct = percentualAplicado(f), min = minimoLegal(f);
   const aud = auditoriasDe(c.id); const cAnt = compAnterior(c);
   const linhaFin = x => `<tr><td>${esc(x.rot)}</td><td class="num">${fmtMoney(f[x.k])}</td></tr>`;
@@ -3746,16 +4297,42 @@ function viewRelQuadrimestre(){
       ${areasAtivas().map(a=>{
         const bs = basesDe(a.id, c.id);
         const inds = STATE.indicadores.filter(i=>i.areaId===a.id && i.ativo!==false);
-        if(!bs.length && !inds.length) return '';
+        const figs = figurasDe(a.id, c.id).filter(x=>x.incluir && imgSrc(x.img));   // usadas só para decidir se a área aparece
+        if(!bs.length && !inds.length && !figs.length) return '';
         return `<h3 style="margin:14px 0 6px;color:${esc(a.cor)};">${esc(a.icone+' '+a.nome)}</h3>
-          ${bs.length?`<table><thead><tr><th>Base de dados</th><th class="num">Registros</th><th>Medida principal</th><th class="num">Total</th><th>Destaque</th></tr></thead><tbody>${bs.map(b=>{ const an = analisarBase(b); return `<tr><td>${esc(b.titulo)}</td><td class="num">${fmtNum(an.linhas.length)}</td><td>${an.colValor?esc(an.colValor.nome):'—'}</td><td class="num">${an.colValor?(an.dinheiro?fmtMoney(an.colValor.soma):fmtNum(an.colValor.soma)):'—'}</td><td style="white-space:normal;">${(an.kpis.find(k=>k.rotulo==='Maior categoria')||{}).valor?esc((an.kpis.find(k=>k.rotulo==='Maior categoria')).valor):'—'}</td></tr>`; }).join('')}</tbody></table>`:''}
-          ${inds.length?`<table style="margin-top:8px;"><thead><tr><th>Indicador</th><th class="num">Meta</th><th class="num">${cAnt?esc(compRotuloCurto(cAnt)):'Anterior'}</th><th class="num">${esc(compRotuloCurto(c))}</th><th>Situação</th><th>Observação</th></tr></thead><tbody>${inds.map(i=>{ const l = lancamento(c.id,i.id)||{}, la = cAnt?(lancamento(cAnt.id,i.id)||{}):{}; return `<tr><td style="white-space:normal;">${esc(i.nome)}</td><td class="num">${numOk(i.meta)?fmtValorUnidade(i.meta,i.unidade):'—'}</td><td class="num">${fmtValorUnidade(la.valor,i.unidade)}</td><td class="num"><b>${fmtValorUnidade(l.valor,i.unidade)}</b></td><td>${badgeSituacao(situacaoIndicador(i,l.valor))}</td><td style="white-space:normal;">${esc(l.obs||'')}</td></tr>`; }).join('')}</tbody></table>`:''}`;
+          ${blocosRelArea(a, c)}
+          ${inds.length?`<table style="margin-top:8px;"><thead><tr><th>Indicador</th><th class="num">Meta</th><th class="num">${cAnt?esc(compRotuloCurto(cAnt)):'Anterior'}</th><th class="num">${esc(compRotuloCurto(c))}</th><th>Situação</th><th>Observação</th></tr></thead><tbody>${inds.map(i=>{ const l = lancamento(c.id,i.id)||{}, la = cAnt?(lancamento(cAnt.id,i.id)||{}):{}; return `<tr><td style="white-space:normal;">${esc(i.nome)}</td><td class="num">${numOk(i.meta)?fmtValorUnidade(i.meta,i.unidade):'—'}</td><td class="num">${fmtValorUnidade(la.valor,i.unidade)}</td><td class="num"><b>${fmtValorUnidade(l.valor,i.unidade)}</b></td><td>${badgeSituacao(situacaoIndicador(i,l.valor))}</td><td style="white-space:normal;">${esc(l.obs||'')}</td></tr>`; }).join('')}</tbody></table>`:''}
+          `;
       }).join('')}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:56px;">
         <div style="border-top:1px solid var(--ink);padding-top:6px;text-align:center;font-size:12px;"><b>${esc(e.secretario||'')}</b><br><span class="muted">${esc(e.cargoSecretario||'Gestor(a) Municipal de Saúde')}</span></div>
         <div style="border-top:1px solid var(--ink);padding-top:6px;text-align:center;font-size:12px;"><b>&nbsp;</b><br><span class="muted">Presidente do Conselho Municipal de Saúde</span></div>
       </div>
     </div>`;
+}
+/* Seção III do relatório: planilhas e imagens na sequência escolhida na tela da área.
+   Planilhas seguidas ficam juntas numa mesma tabela; cada imagem entra no seu lugar. */
+function blocosRelArea(a, c){
+  const itens = itensDaArea(a.id, c.id).filter(it=>it.tipo==='base' || (it.obj.incluir && imgSrc(it.obj.img)));
+  const cabTab = '<table style="margin-top:8px;"><thead><tr><th>Base de dados</th><th class="num">Registros</th><th>Medida principal</th><th class="num">Total</th><th>Destaque</th></tr></thead><tbody>';
+  const linhaBase = b=>{
+    const an = analisarBase(b);
+    const destaque = (an.kpis.find(k=>k.rotulo==='Maior categoria')||{}).valor;
+    return `<tr><td>${esc(b.titulo)}</td><td class="num">${fmtNum(an.linhas.length)}</td><td>${an.colValor?esc(an.colValor.nome):'—'}</td><td class="num">${an.colValor?(an.dinheiro?fmtMoney(an.colValor.soma):fmtNum(an.colValor.soma)):'—'}</td><td style="white-space:normal;">${destaque?esc(destaque):'—'}</td></tr>`;
+  };
+  let html = '', tabelaAberta = false, nFig = 0;
+  itens.forEach(it=>{
+    if(it.tipo==='base'){
+      if(!tabelaAberta){ html += cabTab; tabelaAberta = true; }
+      html += linhaBase(it.obj);
+    } else {
+      if(tabelaAberta){ html += '</tbody></table>'; tabelaAberta = false; }
+      const x = it.obj; nFig++;
+      html += `<div class="rel-figs" style="grid-template-columns:1fr;max-width:640px;"><figure><img src="${esc(imgSrc(x.img))}" alt="${esc(x.legenda)}"><figcaption><b>Figura ${nFig}</b>${x.legenda?' — '+esc(x.legenda):''}${x.fonte?`<br><span class="muted">Fonte: ${esc(x.fonte)}</span>`:''}</figcaption></figure></div>`;
+    }
+  });
+  if(tabelaAberta) html += '</tbody></table>';
+  return html;
 }
 function exportarRelatorioExcel(){
   const c = compSel(); const wb = XLSX.utils.book_new(); const f = finDe(c.id)||{};
@@ -3967,7 +4544,7 @@ async function exportAllData(){
   showToast('Preparando o backup (inclui todas as planilhas)…');
   try{
     await carregarLinhas(STATE.bases);
-    await imgCarregarTodas();
+    await imgCarregarTodas(true);
     const linhas = {}; STATE.bases.forEach(b=>{ linhas[b.id] = LINHAS_CACHE[b.id] || []; });
     const imagens = {}; Object.keys(STATE.imagens).forEach(id=>{ if(IMG_CACHE[id]) imagens[id] = IMG_CACHE[id]; });
     const payload = { _tipo:'backup-audiencias-saude', _versao: appVersao(), _exportadoEm: new Date().toISOString(), dados: STATE, linhas, imagens };
@@ -4215,7 +4792,7 @@ function render(){
   }
   v.innerHTML = html;
   if(!podeEditar(currentView)) v.querySelectorAll('.edit-only').forEach(n=>n.style.display='none');
-  if(base==='area') ligarArrastarSoltar(currentView.split(':')[1]);
+  if(base==='area'){ ligarArrastarSoltar(currentView.split(':')[1]); ligarArrastarFiguras(currentView.split(':')[1]); }
   desenharGraficosPendentes();
   atualizarMarcaEntidade();
   atualizarSeletorCompetencia();
