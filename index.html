@@ -309,6 +309,15 @@ td.nowrap{white-space:nowrap;}
 .ata-assin .linha{border-top:1px solid #15263D;margin-bottom:6px;}
 .ata-assin span{color:var(--ink-soft);}
 .ata-vazio{color:var(--red);font-style:italic;}
+.ata-modelo p{text-indent:0;}
+.ata-modelo img{max-width:100%;height:auto;}
+.ata-modelo table{border-collapse:collapse;margin:6px 0 12px;max-width:100%;}
+.ata-modelo table td,.ata-modelo table th{border:1px solid #9AA6B6;padding:4px 6px;font-size:12px;vertical-align:top;white-space:normal;background:#fff;color:#15263D;position:static;}
+.campos-ata{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:6px;margin-top:10px;max-height:340px;overflow:auto;padding:2px;}
+.campo-ata{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 9px;cursor:pointer;font:inherit;}
+.campo-ata:hover{border-color:var(--brand);background:#F7FAFE;}
+.campo-ata code{font-size:11.5px;color:var(--brand-dark);font-weight:700;}
+.campo-ata span{font-size:11.5px;color:var(--ink-soft);line-height:1.35;}
 .ata-quebra{border-top:2px dashed var(--line);margin:30px 0 20px;}
 @media print{ .ata-quebra{border:none;margin:0;break-before:page;} .print-target .ata-doc{max-width:none;} .print-target .ata-tab th{-webkit-print-color-adjust:exact;print-color-adjust:exact;} }
 
@@ -746,6 +755,12 @@ function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(
    variantes Unicode) são ignorados nas importações e nas comparações: "D'Oeste" = "D’Oeste" = "DOeste";
    '1520 e 1’520 (números guardados como texto) viram o número 1520. */
 const RE_APOSTROFOS = /['`\u00b4\u02b9\u02bb\u02bc\u02bd\u02c8\u2018\u2019\u201a\u201b\u2032\u2035\uff07]/g;
+/* Caracteres especiais gerados por código (nunca escritos direto no arquivo, para não se perderem em cópias):
+   BOM = marca de UTF-8 no início dos CSV/Word; CHAR_SUBSTITUICAO = sinal de acento ilegível ao ler um
+   arquivo antigo (Windows-1252); RE_ESPACOS_ESPECIAIS = espaço rígido e espaço de largura zero. */
+const BOM = String.fromCharCode(0xFEFF);
+const CHAR_SUBSTITUICAO = String.fromCharCode(0xFFFD);
+const RE_ESPACOS_ESPECIAIS = new RegExp('[' + String.fromCharCode(0x00A0, 0x200B) + ']', 'g');
 function semApostrofo(s){ return String(s).replace(RE_APOSTROFOS, ''); }
 function normTxt(s){ return String(s||'').replace(RE_APOSTROFOS,'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim(); }
 function pad2(n){ return String(n).padStart(2,'0'); }
@@ -1151,8 +1166,8 @@ function trocarCodigoAcesso(){
    Criação desta versão com nuvem: setembro/2026 (mês 1).
    ============================================================ */
 const APP_CRIACAO = { mes: 9, ano: 2026 };
-const APP_ALTERACAO = 11;
-const APP_DATA = '2026-09-23';
+const APP_ALTERACAO = 12;
+const APP_DATA = '2026-09-24';
 function appVersao(){
   const p = APP_DATA.split('-').map(Number);
   const seqMes = (p[0] - APP_CRIACAO.ano)*12 + (p[1] - APP_CRIACAO.mes) + 1;
@@ -1652,6 +1667,7 @@ let STATE = {
   areas: null,             // {id, nome, icone, cor, descricao, palavrasChave:[], contexto, ativo}
   bases: [],               // índice das planilhas importadas (as linhas ficam nos blobs)
   figuras: [],             // imagens por área/competência: {id, areaId, competenciaId, img, legenda, fonte, incluir, ordem}
+  modeloAta: null,         // modelo de ata importado: {nome, tipo, blob, partes, aviso, importadoEm, atualizadoEm, por} (o texto fica no blob 'modelo_ata')
   atas: {},                // ata da audiência por competência: {compId: {data, local, presentes[], perguntas[], encaminhamentos[], ...}}
   indicadores: null,       // catálogo: {id, areaId, nome, unidade, meta, polaridade, fonte, descricao, ativo}
   lancamentos: {},         // {competenciaId: {indicadorId: {valor, obs, por, em}}}
@@ -1765,7 +1781,7 @@ const UNIDADES_INDICADOR = ['%','nº','R$','dias','por mil','por 100 mil','razã
 /* Migração suave: garante que campos/módulos novos existam, SEM apagar nada. */
 function garantirModulosNovos(){
   if(!STATE.entidade || typeof STATE.entidade!=='object') STATE.entidade = {};
-  ['nome','nomeFantasia','cnpj','secretaria','secretario','cargoSecretario','endereco','numero','cep','telefone','email','site','brasao','logo'].forEach(k=>{
+  ['nome','nomeFantasia','cnpj','secretaria','secretario','cargoSecretario','endereco','numero','cep','telefone','email','site','brasao','logo','fundoNome','fundoPresidente'].forEach(k=>{
     if(STATE.entidade[k]===undefined) STATE.entidade[k] = '';
   });
   if(STATE.entidade.brasaoPos!=='esquerda' && STATE.entidade.brasaoPos!=='direita') STATE.entidade.brasaoPos = 'esquerda';
@@ -2154,9 +2170,11 @@ function viewEntidade(){
         <div class="field half"><label>Nome da entidade</label><input id="entNome" value="${esc(e.nome)}" placeholder="Ex.: Prefeitura Municipal de Jaborandi"></div>
         <div class="field"><label>Nome fantasia (menu)</label><input id="entFantasia" value="${esc(e.nomeFantasia)}" placeholder="Ex.: Saúde Jaborandi"></div>
         <div class="field"><label>CNPJ</label><input id="entCnpj" value="${esc(e.cnpj)}" placeholder="00.000.000/0000-00"></div>
-        <div class="field half"><label>Secretaria / Fundo Municipal de Saúde</label><input id="entSecretaria" value="${esc(e.secretaria)}" placeholder="Secretaria Municipal de Saúde"></div>
+        <div class="field half"><label>Secretaria Municipal</label><input id="entSecretaria" value="${esc(e.secretaria)}" placeholder="Secretaria Municipal de Saúde"></div>
         <div class="field"><label>Gestor(a) da saúde</label><input id="entSecretario" value="${esc(e.secretario)}" placeholder="Nome completo"></div>
         <div class="field"><label>Cargo</label><input id="entCargo" value="${esc(e.cargoSecretario)}" placeholder="Secretário(a) Municipal de Saúde"></div>
+        <div class="field half"><label>Nome do Fundo Municipal de Saúde</label><input id="entFundo" value="${esc(e.fundoNome)}" placeholder="Fundo Municipal de Saúde de ..."></div>
+        <div class="field half"><label>Presidente do Fundo Municipal</label><input id="entFundoPresidente" value="${esc(e.fundoPresidente)}" placeholder="Nome completo"></div>
         <div class="field half"><label>Endereço</label><input id="entEndereco" value="${esc(e.endereco)}" placeholder="Rua, Av..."></div>
         <div class="field"><label>Número</label><input id="entNumero" value="${esc(e.numero)}"></div>
         <div class="field"><label>CEP</label><input id="entCep" value="${esc(e.cep)}" placeholder="00000-000"></div>
@@ -2185,7 +2203,8 @@ function viewEntidade(){
         ${reportBrandRowHTML()}
         <table><tbody>
           ${linha('Nome da entidade', e.nome)}${linha('Nome fantasia', e.nomeFantasia)}${linha('CNPJ', e.cnpj)}
-          ${linha('Secretaria', e.secretaria)}${linha('Gestor(a)', [e.secretario, e.cargoSecretario].filter(Boolean).join(' — '))}
+          ${linha('Secretaria Municipal', e.secretaria)}${linha('Gestor(a)', [e.secretario, e.cargoSecretario].filter(Boolean).join(' — '))}
+          ${linha('Fundo Municipal de Saúde', e.fundoNome)}${linha('Presidente do Fundo Municipal', e.fundoPresidente)}
           ${linha('Endereço', [e.endereco, e.numero].filter(Boolean).join(', '))}${linha('CEP', e.cep)}
           ${linha('Telefone', e.telefone)}${linha('E-mail', e.email)}${linha('Site', e.site)}
         </tbody></table>
@@ -2198,7 +2217,8 @@ function saveEntidade(){
   Object.assign(STATE.entidade, {
     nome: val('entNome'), nomeFantasia: val('entFantasia'), cnpj: val('entCnpj'), secretaria: val('entSecretaria'),
     secretario: val('entSecretario'), cargoSecretario: val('entCargo'), endereco: val('entEndereco'), numero: val('entNumero'),
-    cep: val('entCep'), telefone: val('entTelefone'), email: val('entEmail'), site: val('entSite')
+    cep: val('entCep'), telefone: val('entTelefone'), email: val('entEmail'), site: val('entSite'),
+    fundoNome: val('entFundo'), fundoPresidente: val('entFundoPresidente')
   });
   registrarAcao('Entidade atualizada');
   saveState(true); render(); showToast('Dados da entidade salvos.','success');
@@ -2851,7 +2871,7 @@ function celulaNormalizada(v){
     return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());
   }
   if(typeof v==='string'){
-    const t = v.replace(/[ ​]/g,' ').replace(/\s+/g,' ').trim();
+    const t = v.replace(RE_ESPACOS_ESPECIAIS,' ').replace(/\s+/g,' ').trim();
     if(t==='' || RE_ERRO_EXCEL.test(t) || /^[-–—.…]+$/.test(t)) return null;
     // apóstrofos são ignorados: '1520 (número guardado como texto) vira 1520; D’Oeste vira DOeste
     const s = semApostrofo(t).trim();
@@ -2968,8 +2988,8 @@ function montarTabelaDeAOA(aoa){
 }
 function decodificarTexto(buf){
   let txt = new TextDecoder('utf-8').decode(buf);
-  if(txt.includes(' ')){ try{ txt = new TextDecoder('windows-1252').decode(buf); }catch(e){} }
-  return txt.replace(/^﻿/,'');
+  if(txt.includes(CHAR_SUBSTITUICAO)){ try{ txt = new TextDecoder('windows-1252').decode(buf); }catch(e){} }
+  return txt.charAt(0)===BOM ? txt.slice(1) : txt;
 }
 function detectarDelimitador(txt){
   const linhas = txt.split(/\r?\n/).filter(l=>l.trim()).slice(0, 80);
@@ -3222,7 +3242,7 @@ function baixarBase(id, formato){
   const b = getBase(id); const linhas = LINHAS_CACHE[id]; if(!b || !linhas) return;
   const nome = nomeArquivoSeguro(b.titulo);
   if(formato==='csv'){
-    baixarArquivo('﻿'+Papa.unparse({ fields:b.colunas, data:linhas }, { delimiter:';' }), nome+'.csv', 'text/csv;charset=utf-8');
+    baixarArquivo(BOM+Papa.unparse({ fields:b.colunas, data:linhas }, { delimiter:';' }), nome+'.csv', 'text/csv;charset=utf-8');
   } else {
     const ws = XLSX.utils.aoa_to_sheet([b.colunas].concat(linhas));
     const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Dados');
@@ -4396,7 +4416,7 @@ function setAta(campo, valor){
   a[campo] = typeof valor==='string' ? valor.trim() : valor;
   a.atualizadoEm = new Date().toISOString(); a.atualizadoPor = currentUser ? currentUser.usuario : '';
   saveState(false);
-  const pv = document.getElementById('ataPrint'); if(pv) pv.innerHTML = ataDocumentoHTML(c, a, false);
+  const pv = document.getElementById('ataPrint'); if(pv) pv.innerHTML = ataPreviewHTML(c, a, false);
 }
 
 /* ---------------- Presentes ---------------- */
@@ -4521,7 +4541,7 @@ function ataDocumentoHTML(c, a, paraWord){
   return `
     <div class="ata-doc">
       ${paraWord ? '' : reportBrandRowHTML()}
-      <div class="ata-ent">${esc((e.nome||entidadeNome()).toUpperCase())}${e.secretaria?'<br>'+esc(e.secretaria):''}</div>
+      <div class="ata-ent">${esc((e.nome||entidadeNome()).toUpperCase())}${e.secretaria?'<br>'+esc(e.secretaria):''}${e.fundoNome?'<br>'+esc(e.fundoNome):''}</div>
       <h2 class="ata-tit">ATA DA AUDIÊNCIA PÚBLICA DE PRESTAÇÃO DE CONTAS DA SAÚDE</h2>
       <div class="ata-sub">${esc(c.rotulo)} — ${esc(c.textoPeriodo||'')}</div>
       <p>${quando}${hora}${local}${modal}, realizou-se a Audiência Pública de prestação de contas da Saúde referente ao <b>${esc(c.rotulo)}</b>, em cumprimento ao art. 36 da Lei Complementar nº 141, de 13 de janeiro de 2012, ${pres}${secr}, com a presença de ${nPres ? numeroPorExtenso(nPres)+' ('+nPres+') participante'+(nPres>1?'s':'')+', conforme lista de presença anexa' : 'participantes conforme lista de presença anexa'}.</p>
@@ -4565,9 +4585,9 @@ function imprimirListaPresenca(emBranco){
 }
 function baixarAtaWord(){
   const c = compSel(); const a = ataDe(c.id) || novaAta(c);
-  const estilo = `body{font-family:"Times New Roman",serif;font-size:12pt;line-height:1.5;text-align:justify;} .ata-ent{text-align:center;font-weight:bold;font-size:11pt;} .ata-tit{text-align:center;font-size:14pt;margin:14pt 0 4pt;} .ata-sub{text-align:center;font-size:10pt;margin-bottom:14pt;} table{border-collapse:collapse;width:100%;} th,td{border:1px solid #000;padding:4pt;font-size:10pt;text-align:left;vertical-align:top;} .ata-vaziarow td{height:22pt;} .ata-assin{margin-top:40pt;} .ata-assin div{display:inline-block;width:45%;text-align:center;margin-right:4%;} .ata-assin .linha{border-top:1px solid #000;margin-bottom:4pt;height:1px;} .ata-vazio{color:#c00;}`;
-  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>Ata ${esc(c.rotulo)}</title><style>${estilo}</style></head><body>${ataDocumentoHTML(c, a, true)}</body></html>`;
-  baixarArquivo('﻿'+html, `Ata_Audiencia_${nomeArquivoSeguro(c.rotulo)}.doc`, 'application/msword');
+  const estilo = `body{font-family:"Times New Roman",serif;font-size:12pt;line-height:1.5;text-align:justify;} .ata-ent{text-align:center;font-weight:bold;font-size:11pt;} .ata-tit{text-align:center;font-size:14pt;margin:14pt 0 4pt;} .ata-sub{text-align:center;font-size:10pt;margin-bottom:14pt;} table{border-collapse:collapse;width:100%;} th,td{border:1px solid #000;padding:4pt;font-size:10pt;text-align:left;vertical-align:top;} .ata-vaziarow td{height:22pt;} .ata-assin{margin-top:40pt;} .ata-assin div{display:inline-block;width:45%;text-align:center;margin-right:4%;} .ata-assin .linha{border-top:1px solid #000;margin-bottom:4pt;height:1px;} .ata-vazio{color:#c00;} .ata-modelo img{max-width:100%;}`;
+  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>Ata ${esc(c.rotulo)}</title><style>${estilo}</style></head><body>${ataPreviewHTML(c, a, true)}</body></html>`;
+  baixarArquivo(BOM+html, `Ata_Audiencia_${nomeArquivoSeguro(c.rotulo)}.doc`, 'application/msword');
   registrarComando('⭳ Ata exportada para Word');
 }
 function finalizarAta(v){
@@ -4596,7 +4616,7 @@ function viewAta(){
     <div class="card">
       <div class="flexrow">
         <div><h2 style="margin:0;">🖋️ Ata da audiência — ${esc(c.rotulo)} ${bloqueada?'<span class="badge ok">✔ finalizada</span>':'<span class="badge ambar">em elaboração</span>'}</h2>
-          <div class="subtitle" style="margin:4px 0 0;">Registre a sessão durante ou logo depois da audiência. O texto formal da ata é montado sozinho — veja a prévia no fim da página.</div></div>
+          <div class="subtitle" style="margin:4px 0 0;">Registre a sessão durante ou logo depois da audiência. O texto formal da ata é montado sozinho — no texto do sistema ou no seu <b>modelo de ata</b> — veja a prévia no fim da página.</div></div>
         <div class="actions">
           <button class="btn" onclick="printReportAsk('ataPrint','Ata — ${escJs(c.rotulo)}')">🖨️ Imprimir ata</button>
           <button class="btn secondary" onclick="baixarAtaWord()">⭳ Word</button>
@@ -4676,8 +4696,525 @@ function viewAta(){
       <h3>📝 Considerações finais (opcional)</h3>
       <textarea class="fig-in" style="min-height:80px;" ${ed?'':'disabled'} onchange="setAta('consideracoes', this.value)" placeholder="Ex.: O Conselho Municipal de Saúde manifestou-se favoravelmente à aprovação do relatório…">${esc(a.consideracoes)}</textarea>
     </div>
-    <div class="section-title">👁 Prévia da ata</div>
-    <div class="card" id="ataPrint">${ataDocumentoHTML(c, a, false)}</div>`;
+    ${secaoModeloAtaHTML(c, a, pode, ed)}
+    <div class="section-title">👁 Prévia da ata${usandoModeloAta(a) ? ' — no formato do modelo importado' : ''}</div>
+    <div class="card" id="ataPrint">${ataPreviewHTML(c, a, false)}</div>`;
+}
+
+/* ============================================================
+   MODELO DE ATA (DOC, DOCX, PDF, XLS, XLSX)
+   O usuário importa a ata no formato da casa. O sistema converte o arquivo
+   em texto formatado e troca os CAMPOS {{...}} pelos dados atuais da
+   audiência (datas por extenso, local, presidente, presentes, perguntas,
+   encaminhamentos, % aplicado etc.).
+   Para modelos antigos, sem campos, o sistema encontra trechos que mudam a
+   cada audiência (datas, horários, "2º quadrimestre de 2025", anos,
+   percentuais) e oferece transformá-los em campos — o modelo é salvo já
+   convertido e passa a se atualizar sozinho nas próximas atas.
+   O arquivo convertido fica guardado na nuvem (documentos "blob").
+   ============================================================ */
+let MODELO_ATA_HTML = null;          // HTML do modelo (baixado sob demanda)
+let carregandoModeloAta = null;
+let mostrarCamposAta = false, mostrarTrechosAta = false;
+const EXT_MODELO_ATA = ['doc','docx','pdf','xls','xlsx'];
+
+function modeloAtaInfo(){ return STATE.modeloAta || null; }
+let MODELO_ATA_VERSAO = '';           // qual versão do modelo está em MODELO_ATA_HTML (muda se outro usuário trocar o modelo)
+function modeloAtaPronto(){
+  const m = modeloAtaInfo();
+  if(!m) return true;
+  if(MODELO_ATA_HTML!==null && MODELO_ATA_VERSAO===m.atualizadoEm) return true;
+  if(!carregandoModeloAta){
+    const v = currentView, versao = m.atualizadoEm;
+    carregandoModeloAta = blobLer(m.blob, m.partes)
+      .then(h=>{ MODELO_ATA_HTML = h; })
+      .catch(e=>{ MODELO_ATA_HTML = ''; m._erro = e.message || 'erro ao ler'; })
+      .finally(()=>{ MODELO_ATA_VERSAO = versao; carregandoModeloAta = null; if(currentView===v) render(); });
+  }
+  return false;
+}
+function usandoModeloAta(a){ return !!(modeloAtaInfo() && modeloAtaPronto() && MODELO_ATA_HTML && (!a || a.usarModelo!==false)); }
+
+/* ---------------- Campos disponíveis ---------------- */
+function mesesPorExtenso(c){ const ms = String(c.meses||'').split('·').map(s=>s.trim().toLowerCase()).filter(Boolean); return ms.length>1 ? ms.slice(0,-1).join(', ')+' e '+ms[ms.length-1] : (ms[0]||''); }
+function dataLongaBR(iso){ const d = isoParaData(iso); return d ? `${d.getDate()} de ${MESES_EXTENSO[d.getMonth()]} de ${d.getFullYear()}` : ''; }
+function dataExtensoSimples(iso){ const d = isoParaData(iso); return d ? `${d.getDate()===1?'primeiro':numeroPorExtenso(d.getDate())} de ${MESES_EXTENSO[d.getMonth()]} de ${numeroPorExtenso(d.getFullYear())}` : ''; }
+function horaCurta(hhmm){ const m = String(hhmm||'').match(/^(\d{1,2}):(\d{2})/); return m ? `${Number(m[1])}h${m[2]}` : ''; }
+function perguntasBlocoHTML(a){
+  if(!a.perguntas.length) return '<p>Aberta a palavra aos presentes, não houve perguntas ou manifestações.</p>';
+  return `<ol class="ata-lista">${a.perguntas.map(p=>`<li>${p.autor?`<b>${esc(p.autor)}</b>${p.segmento?' ('+esc(p.segmento)+')':''}`:'Participante'} manifestou-se: “${esc(p.pergunta)}”.${p.resposta?` ${p.respondidoPor?esc(p.respondidoPor):'A mesa'} respondeu: “${esc(p.resposta)}”.`:' A questão ficou registrada para resposta posterior.'}</li>`).join('')}</ol>`;
+}
+function encaminhamentosBlocoHTML(a){
+  if(!a.encaminhamentos.length) return '<p>Não houve encaminhamentos.</p>';
+  return `<table class="ata-tab"><thead><tr><th>Nº</th><th>Encaminhamento</th><th>Responsável</th><th>Prazo</th></tr></thead><tbody>${a.encaminhamentos.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.descricao)}</td><td>${esc(x.responsavel)||'—'}</td><td>${x.prazo?fmtDateBR(x.prazo):'—'}</td></tr>`).join('')}</tbody></table>`;
+}
+function retornoEncaminhamentosTexto(c){
+  const ret = encaminhamentosDaAnterior(c);
+  return ret.length ? ret.map(x=>`${x.e.descricao} — ${x.e.situacao}${x.e.responsavel?' (responsável: '+x.e.responsavel+')':''}`).join('; ') + '.' : 'Não havia encaminhamentos da audiência anterior.';
+}
+/* [chave, descrição, função (c, a) → texto | {html}] */
+const CAMPOS_ATA = [
+  ['ENTIDADE','Nome da entidade (prefeitura)', ()=>STATE.entidade.nome||entidadeNome()],
+  ['SECRETARIA','Secretaria Municipal', ()=>STATE.entidade.secretaria],
+  ['GESTOR','Gestor(a) da saúde', ()=>STATE.entidade.secretario],
+  ['CARGO_GESTOR','Cargo do(a) gestor(a)', ()=>STATE.entidade.cargoSecretario],
+  ['FUNDO','Nome do Fundo Municipal de Saúde', ()=>STATE.entidade.fundoNome],
+  ['PRESIDENTE_FUNDO','Presidente do Fundo Municipal', ()=>STATE.entidade.fundoPresidente],
+  ['CNPJ','CNPJ da entidade', ()=>STATE.entidade.cnpj],
+  ['COMPETENCIA','Competência (ex.: 2º Quadrimestre 2026)', c=>c.rotulo],
+  ['QUADRIMESTRE','Quadrimestre (ex.: 2º Quadrimestre de 2026)', c=>`${c.quadrimestre}º Quadrimestre de ${c.ano}`],
+  ['QUADRIMESTRE_EXTENSO','Quadrimestre por extenso (segundo quadrimestre de 2026)', c=>`${['primeiro','segundo','terceiro'][c.quadrimestre-1]||''} quadrimestre de ${c.ano}`],
+  ['ANO','Ano da competência', c=>String(c.ano)],
+  ['MESES','Meses do quadrimestre (maio, junho, julho e agosto)', c=>mesesPorExtenso(c)],
+  ['PERIODO','Período (01/05/2026 a 31/08/2026)', c=>`${fmtDateBR(c.inicio)} a ${fmtDateBR(c.fim)}`],
+  ['PERIODO_INICIO','Início do período', c=>fmtDateBR(c.inicio)],
+  ['PERIODO_FIM','Fim do período', c=>fmtDateBR(c.fim)],
+  ['PRAZO_LEGAL','Prazo legal da audiência', c=>fmtDateBR(prazoLegalAudiencia(c))],
+  ['DATA','Data da audiência (29/09/2026)', (c,a)=>a.data?fmtDateBR(a.data):''],
+  ['DATA_LONGA','Data longa (29 de setembro de 2026)', (c,a)=>dataLongaBR(a.data)],
+  ['DATA_EXTENSO','Abertura por extenso (Aos vinte e nove dias do mês de setembro do ano de dois mil e vinte e seis)', (c,a)=>dataPorExtenso(a.data)],
+  ['DATA_EXTENSO_SIMPLES','Data por extenso (vinte e nove de setembro de dois mil e vinte e seis)', (c,a)=>dataExtensoSimples(a.data)],
+  ['HORA_INICIO','Horário de início (19h00)', (c,a)=>horaCurta(a.horaInicio)],
+  ['HORA_INICIO_EXTENSO','Início por extenso (dezenove horas)', (c,a)=>horaPorExtenso(a.horaInicio)],
+  ['HORA_FIM','Horário de encerramento', (c,a)=>horaCurta(a.horaFim)],
+  ['HORA_FIM_EXTENSO','Encerramento por extenso', (c,a)=>horaPorExtenso(a.horaFim)],
+  ['LOCAL','Local da audiência', (c,a)=>a.local],
+  ['MODALIDADE','Modalidade (presencial, híbrida, online)', (c,a)=>String(a.modalidade||'').toLowerCase()],
+  ['PRESIDENTE','Quem presidiu', (c,a)=>a.presidente],
+  ['CARGO_PRESIDENTE','Cargo de quem presidiu', (c,a)=>a.cargoPresidente],
+  ['SECRETARIO','Quem secretariou / lavrou a ata', (c,a)=>a.secretario],
+  ['CARGO_SECRETARIO','Cargo de quem lavrou a ata', (c,a)=>a.cargoSecretario],
+  ['NUM_PRESENTES','Número de presentes', (c,a)=>a.presentes.length?String(a.presentes.length):''],
+  ['NUM_PRESENTES_EXTENSO','Número de presentes por extenso', (c,a)=>a.presentes.length?numeroPorExtenso(a.presentes.length):''],
+  ['PRESENTES_NOMES','Nomes dos presentes, separados por vírgula', (c,a)=>a.presentes.map(p=>p.nome).join(', ')],
+  ['LISTA_PRESENCA','Lista de presença (tabela para assinatura)', (c,a)=>({ html: listaPresencaHTML(c, a, false, false) })],
+  ['RESUMO_DADOS','Resumo dos dados apresentados (texto automático)', c=>resumoDadosApresentados(c)],
+  ['PERCENTUAL_APLICADO','% aplicado em saúde (LC 141)', c=>{ const p = percentualAplicado(finDe(c.id)); return p===null?'':fmtPct(p,2); }],
+  ['MINIMO_LEGAL','Mínimo legal (%)', c=>fmtPct(minimoLegal(finDe(c.id)),0)],
+  ['SITUACAO_LC141','Cumpriu / não cumpriu o mínimo', c=>{ const f = finDe(c.id), p = percentualAplicado(f); return p===null?'':(p>=minimoLegal(f)?'cumpriu':'não cumpriu'); }],
+  ['DESPESA_ASPS','Despesa com ASPS (R$)', c=>{ const f = finDe(c.id); return f&&numOk(f.despesaAsps)?fmtMoney(f.despesaAsps):''; }],
+  ['RECEITA_BASE','Receita base de cálculo (R$)', c=>{ const f = finDe(c.id); return f&&numOk(f.receitaBase)?fmtMoney(f.receitaBase):''; }],
+  ['INDICADORES_LANCADOS','Nº de indicadores apresentados', c=>String(resumoIndicadores(c.id).lancados)],
+  ['INDICADORES_ATINGIDOS','Nº de indicadores que atingiram a meta', c=>String(resumoIndicadores(c.id).ok)],
+  ['INDICADORES_ABAIXO','Nº de indicadores abaixo da meta', c=>String(resumoIndicadores(c.id).nao)],
+  ['NUM_AUDITORIAS','Nº de auditorias no período', c=>String(auditoriasDe(c.id).length)],
+  ['AUDITORIAS','Auditorias (texto)', c=>{ const au = auditoriasDe(c.id); return au.length ? au.map(x=>`${x.orgao}${x.tipo?' ('+x.tipo+')':''}: ${x.objeto} — ${x.situacao}`).join('; ')+'.' : (STATE.semAuditoria[c.id]?'Não houve auditorias no período.':''); }],
+  ['PERGUNTAS','Perguntas e respostas (lista numerada)', (c,a)=>({ html: perguntasBlocoHTML(a) })],
+  ['ENCAMINHAMENTOS','Encaminhamentos (tabela)', (c,a)=>({ html: encaminhamentosBlocoHTML(a) })],
+  ['RETORNO_ENCAMINHAMENTOS','Retorno dos encaminhamentos da audiência anterior', c=>retornoEncaminhamentosTexto(c)],
+  ['ABERTURA','Texto adicional de abertura', (c,a)=>a.abertura],
+  ['CONSIDERACOES','Considerações finais', (c,a)=>a.consideracoes],
+  ['DATA_HOJE','Data de hoje', ()=>fmtDateBR(hojeISO())],
+  ['DATA_HOJE_EXTENSO','Data de hoje por extenso', ()=>dataExtensoSimples(hojeISO())],
+];
+const CAMPOS_ATA_MAPA = {}; CAMPOS_ATA.forEach(x=>{ CAMPOS_ATA_MAPA[x[0]] = x; });
+function chaveCampo(txt){ return normTxt(txt).toUpperCase().replace(/[^A-Z0-9]+/g,'_').replace(/^_|_$/g,''); }
+
+/* ---------------- Montagem da prévia a partir do modelo ---------------- */
+function valorCampoAta(chave, c, a){
+  const def = CAMPOS_ATA_MAPA[chave]; if(!def) return null;
+  let v; try{ v = def[2](c, a); }catch(e){ v = ''; }
+  return v;
+}
+function renderModeloAta(c, a, paraWord){
+  let html = MODELO_ATA_HTML || '';
+  // campos de bloco sozinhos num parágrafo: o parágrafo inteiro vira o bloco (tabela, lista)
+  html = html.replace(/<p[^>]*>\s*\{\{\s*([^{}]+?)\s*\}\}\s*<\/p>/gi, (m, nome)=>{
+    const v = valorCampoAta(chaveCampo(nome), c, a);
+    return v && typeof v==='object' ? v.html : m;
+  });
+  html = html.replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (m, nome)=>{
+    const chave = chaveCampo(nome);
+    const def = CAMPOS_ATA_MAPA[chave];
+    if(!def) return `<span class="ata-vazio" title="Campo desconhecido">${esc(m)}</span>`;
+    const v = valorCampoAta(chave, c, a);
+    if(v && typeof v==='object') return v.html;
+    if(v===null || v===undefined || String(v).trim()==='') return `<span class="ata-vazio">[${esc(def[1].split(' (')[0].toLowerCase())}]</span>`;
+    return esc(v);
+  });
+  const temLista = /\{\{\s*lista[\s_]*presen/i.test(MODELO_ATA_HTML||'');
+  if(a.anexarListaModelo!==false && !temLista){
+    html += (paraWord ? '<br style="page-break-before:always" clear="all">' : '<div class="ata-quebra"></div>') + listaPresencaHTML(c, a, false, paraWord);
+  }
+  return `<div class="ata-doc ata-modelo">${html}</div>`;
+}
+/* Prévia usada na tela, na impressão e no Word: modelo importado ou texto automático. */
+function ataPreviewHTML(c, a, paraWord){
+  return usandoModeloAta(a) ? renderModeloAta(c, a, paraWord) : ataDocumentoHTML(c, a, paraWord);
+}
+function camposDesconhecidosModelo(){
+  const set = new Set();
+  String(MODELO_ATA_HTML||'').replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (m, nome)=>{ if(!CAMPOS_ATA_MAPA[chaveCampo(nome)]) set.add(m); return m; });
+  return Array.from(set);
+}
+function camposUsadosModelo(){
+  const set = new Set();
+  String(MODELO_ATA_HTML||'').replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (m, nome)=>{ const k = chaveCampo(nome); if(CAMPOS_ATA_MAPA[k]) set.add(k); return m; });
+  return Array.from(set);
+}
+
+/* ---------------- Leitura dos arquivos ---------------- */
+function sanitizarHTML(html){
+  const doc = new DOMParser().parseFromString('<div id="raiz">'+String(html||'')+'</div>', 'text/html');
+  const raiz = doc.getElementById('raiz') || doc.body;
+  raiz.querySelectorAll('script,style,iframe,object,embed,link,meta,form,input,button,textarea,select').forEach(n=>n.remove());
+  raiz.querySelectorAll('*').forEach(el=>{
+    Array.from(el.attributes).forEach(at=>{
+      const n = at.name.toLowerCase();
+      if(n.startsWith('on')) el.removeAttribute(at.name);
+      else if((n==='href' || n==='src') && /^\s*javascript:/i.test(at.value)) el.removeAttribute(at.name);
+    });
+  });
+  return raiz.innerHTML;
+}
+/* Junta os pedaços de um campo que o Word quebrou em formatações diferentes ("{{DA" + "TA}}")
+   e aceita também o formato de mala direta «CAMPO». */
+function normalizarMarcadores(html){
+  // as marcações de formatação que estavam no meio do campo vão para logo depois dele (mantém o HTML equilibrado)
+  html = String(html||'').replace(/\{\{((?:[^{}<]|<[^>]*>)*?)\}\}/g, (m, dentro)=>'{{'+dentro.replace(/<[^>]*>/g,'').replace(/&nbsp;/g,' ').trim()+'}}'+(dentro.match(/<[^>]*>/g)||[]).join(''));
+  html = html.replace(/«\s*([A-Za-zÀ-ú0-9_ ]{2,40})\s*»/g, (m, nome)=> CAMPOS_ATA_MAPA[chaveCampo(nome)] ? '{{'+chaveCampo(nome)+'}}' : m);
+  return html;
+}
+function textoParaParagrafos(texto){
+  return String(texto||'').split(/\n{2,}|\r\n\r\n/).map(p=>p.replace(/\s*\n\s*/g,' ').trim()).filter(Boolean).map(p=>`<p>${esc(p)}</p>`).join('');
+}
+/* .doc antigo (Word 97-2003): não há leitor completo no navegador; extrai o texto do arquivo
+   (os parágrafos saem certos, a formatação fina não). Arquivos .doc que na verdade são HTML
+   (como o exportado por este sistema) ou RTF são lidos pelo conteúdo. */
+function textoDeDocBinario(bytes){
+  const letra = ch => /[A-Za-zÀ-ÿ0-9 .,;:!?()%ºª°"'\-\/–—“”‘’$@{}_«»&*+=#§]/.test(ch);
+  const extrair = txt => {
+    const pars = []; let atual = '';
+    for(let i=0;i<txt.length;i++){
+      const code = txt.charCodeAt(i);
+      if(code===13 || code===11){ pars.push(atual); atual=''; }
+      else if(code===7 || code===9){ atual += ' '; }
+      else if(code<32){ if(atual.length){ pars.push(atual); atual=''; } }
+      else atual += txt[i];
+    }
+    pars.push(atual);
+    const legivel = p => { let bons = 0; for(const ch of p) if(letra(ch)) bons++; return p.length>=3 && bons/p.length >= 0.9 && /[A-Za-zÀ-ÿ]{3}/.test(p); };
+    return pars.map(p=>{
+      p = p.trim();
+      if(legivel(p)) return p;
+      // texto colado em dados binários: aproveita o fim legível do trecho
+      let k = p.length; while(k>0 && letra(p[k-1])) k--;
+      const fim = p.slice(k).trim();
+      return fim.length>=12 && legivel(fim) ? fim : '';
+    }).filter(Boolean);
+  };
+  const a = extrair(new TextDecoder('utf-16le').decode(bytes));
+  const b = extrair(new TextDecoder('windows-1252').decode(bytes));
+  const tam = l => l.reduce((s,p)=>s+p.length,0);
+  const melhor = tam(a) >= tam(b) ? a : b;
+  return melhor.filter(p=>!/^(Microsoft|Normal|Default Paragraph Font|Times New Roman|Arial|Calibri|Symbol|Wingdings|Título|Heading|WordDocument|Root Entry|SummaryInformation|DocumentSummaryInformation)\b/i.test(p));
+}
+function rtfParaTexto(rtf){
+  // tira os grupos que não são texto (fontes, cores, estilos, dados do arquivo, imagens)
+  const barra = String.fromCharCode(92);
+  let t = '', i = 0;
+  const pular = /^\{\\(\*|fonttbl|colortbl|stylesheet|info|pict|listtable|listoverridetable|rsidtbl|generator|themedata|colorschememapping|latentstyles|datastore)/;
+  while(i < rtf.length){
+    if(rtf[i]==='{' && pular.test(rtf.slice(i, i+30))){
+      let nivel = 0;
+      for(; i < rtf.length; i++){
+        if(rtf[i]===barra){ i++; continue; }
+        if(rtf[i]==='{') nivel++;
+        else if(rtf[i]==='}'){ nivel--; if(!nivel){ i++; break; } }
+      }
+      continue;
+    }
+    t += rtf[i++];
+  }
+  // chaves e barras escritas no texto (\{ \} e barra dupla) são guardadas antes de limpar os comandos
+  const CH_ABRE = String.fromCharCode(1), CH_FECHA = String.fromCharCode(2), CH_BARRA = String.fromCharCode(3);
+  t = t.split(barra+barra).join(CH_BARRA).split(barra+'{').join(CH_ABRE).split(barra+'}').join(CH_FECHA);
+  t = t.replace(/\\pard\b ?/g,' ').replace(/\\par\b ?/g,'\n\n').replace(/\\line\b ?/g,'\n').replace(/\\tab\b ?/g,' ');
+  // caracteres unicode do RTF (barra + "u" + número); a regra é montada com a barra em variável
+  t = t.replace(new RegExp(barra+barra+'u(-?[0-9]+) ?[?]?','g'), (m,n)=>String.fromCharCode(Number(n)<0 ? Number(n)+65536 : Number(n)));
+  t = t.replace(/\\'([0-9a-fA-F]{2})/g, (m,h)=>new TextDecoder('windows-1252').decode(new Uint8Array([parseInt(h,16)])));
+  t = t.replace(/\\[a-zA-Z]+-?\d* ?/g,'').replace(/[{}]/g,'');
+  return t.split(CH_ABRE).join('{').split(CH_FECHA).join('}').split(CH_BARRA).join(barra);
+}
+async function docParaHTML(buf){
+  const bytes = new Uint8Array(buf);
+  const inicio = new TextDecoder('windows-1252').decode(bytes.slice(0, 4000));
+  if(/<html|<body|<!doctype|<p[\s>]/i.test(inicio)){
+    const txt = decodificarTexto(buf);
+    const doc = new DOMParser().parseFromString(txt, 'text/html');
+    return { html: doc.body ? doc.body.innerHTML : txt, aviso: '' };
+  }
+  if(inicio.trim().startsWith('{'+String.fromCharCode(92)+'rtf')){
+    return { html: textoParaParagrafos(rtfParaTexto(decodificarTexto(buf))), aviso:'Arquivo RTF: o texto foi aproveitado; a formatação fina não.' };
+  }
+  const pars = textoDeDocBinario(bytes);
+  if(!pars.length) throw new Error('não consegui ler o texto deste .doc — salve-o como .docx no Word e importe de novo');
+  return { html: pars.map(p=>`<p>${esc(p)}</p>`).join(''), aviso:'Arquivo .doc antigo: o texto e os parágrafos foram aproveitados, mas negrito, tabelas e imagens não. Para manter a formatação, salve como .docx no Word e importe de novo.' };
+}
+async function pdfParaHTML(buf){
+  if(!window.pdfjsLib) throw new Error('biblioteca de PDF não carregada');
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  const blocos = [];
+  for(let p=1; p<=pdf.numPages; p++){
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    const itens = content.items.filter(it=>it.str && it.str.trim()).map(it=>({ x: it.transform[4], y: it.transform[5], h: Math.abs(it.transform[3])||10, w: it.width||0, s: it.str }));
+    itens.sort((a,b)=>(b.y-a.y)||(a.x-b.x));
+    const linhas = [];
+    itens.forEach(it=>{ const l = linhas.find(l=>Math.abs(l.y-it.y) <= Math.max(2, it.h*0.4)); if(l){ l.itens.push(it); } else linhas.push({ y: it.y, h: it.h, itens:[it] }); });
+    linhas.sort((a,b)=>b.y-a.y);
+    const gaps = []; for(let i=1;i<linhas.length;i++) gaps.push(linhas[i-1].y - linhas[i].y);
+    const tipico = gaps.length ? gaps.slice().sort((a,b)=>a-b)[Math.floor(gaps.length/2)] : 14;
+    // borda direita de cada linha: linha que termina bem antes da margem (título, fim de parágrafo) fecha o parágrafo
+    linhas.forEach(l=>{ l.dir = Math.max(...l.itens.map(x=>x.x + x.w)); });
+    const margemDir = linhas.length ? Math.max(...linhas.map(l=>l.dir)) : 0;
+    let par = '', dirAnterior = margemDir;
+    linhas.forEach((l, i)=>{
+      const texto = l.itens.sort((a,b)=>a.x-b.x).map(x=>x.s).join(' ').replace(/\s+/g,' ').trim();
+      if(/^p[aá]g(ina)?\.?\s*\d+(\s*(de|\/)\s*\d+)?$/i.test(texto)) return;
+      const gap = i>0 ? linhas[i-1].y - l.y : 0;
+      const linhaCurta = margemDir>0 && dirAnterior < margemDir*0.75;
+      if(i>0 && par && (gap > tipico*1.5 || linhaCurta)){ blocos.push(par); par = ''; }
+      dirAnterior = l.dir;
+      par = par ? (par.endsWith('-') ? par.slice(0,-1)+texto : par+' '+texto) : texto;
+    });
+    if(par) blocos.push(par);
+  }
+  if(!blocos.length) throw new Error('o PDF não tem texto (parece digitalizado) — use o arquivo do Word');
+  return { html: blocos.map(b=>`<p>${esc(b)}</p>`).join(''), aviso:'Arquivo PDF: o texto e os parágrafos foram aproveitados; negrito e tabelas podem não vir. Para manter a formatação, prefira o .docx.' };
+}
+async function planilhaParaHTML(buf){
+  const wb = XLSX.read(buf, { type:'array' });
+  const infoAbas = (wb.Workbook && wb.Workbook.Sheets) || [];
+  const visiveis = wb.SheetNames.filter((n,i)=>!(infoAbas[i] && infoAbas[i].Hidden) && wb.Sheets[n] && wb.Sheets[n]['!ref']);
+  const html = visiveis.map(n=>(visiveis.length>1?`<h3>${esc(n)}</h3>`:'') + XLSX.utils.sheet_to_html(wb.Sheets[n], { header:'', footer:'' })).join('');
+  return { html, aviso:'Planilha: cada aba virou uma tabela. Os campos {{...}} escritos nas células são trocados normalmente.' };
+}
+async function docxParaHTML(buf){
+  await carregarScript('https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js', 'mammoth');
+  const r = await mammoth.convertToHtml({ arrayBuffer: buf }, {
+    convertImage: mammoth.images.imgElement(async img=>{
+      try{ const b64 = await img.read('base64'); return { src: await comprimirImagem('data:'+img.contentType+';base64,'+b64, 700, false) }; }
+      catch(e){ return { src:'' }; }
+    })
+  });
+  return { html: r.value, aviso:'' };
+}
+let importandoModelo = false;
+async function importarModeloAta(ev){
+  if(semPermissao('ata')){ ev.target.value=''; return; }
+  const file = ev.target.files[0]; ev.target.value = ''; if(!file) return;
+  const ext = file.name.split('.').pop().toLowerCase();
+  if(!EXT_MODELO_ATA.includes(ext)){ showToast('Use um arquivo DOC, DOCX, PDF, XLS ou XLSX.','warning'); return; }
+  if(importandoModelo) return;
+  importandoModelo = true;
+  try{
+    showToast('Lendo o modelo de ata…');
+    const buf = await file.arrayBuffer();
+    let r;
+    if(ext==='docx') r = await docxParaHTML(buf);
+    else if(ext==='doc') r = await docParaHTML(buf);
+    else if(ext==='pdf') r = await pdfParaHTML(buf);
+    else r = await planilhaParaHTML(buf);
+    const html = sanitizarHTML(normalizarMarcadores(r.html));
+    if(!html.replace(/<[^>]*>/g,'').trim()) throw new Error('o arquivo não tem texto aproveitável');
+    await gravarModeloAta(html, { nome: file.name, tipo: ext, aviso: r.aviso });
+    const n = camposUsadosModelo().length;
+    registrarAcao('Modelo de ata importado: '+file.name);
+    mostrarTrechosAta = !n;
+    render();
+    showToast(n ? `Modelo importado com ${n} campo(s) automático(s).` : 'Modelo importado. Ele ainda não tem campos {{...}} — veja abaixo os trechos que podem virar campos.', 'success');
+  }catch(e){ console.error(e); showToast('Não foi possível ler o modelo: '+(e.message||e),'error'); }
+  finally{ importandoModelo = false; }
+}
+async function gravarModeloAta(html, info){
+  const ant = modeloAtaInfo();
+  const partes = await blobSalvar('modelo_ata', html, ant ? ant.partes : 0);
+  STATE.modeloAta = Object.assign({}, ant||{}, info||{}, { blob:'modelo_ata', partes, atualizadoEm: new Date().toISOString(), por: currentUser ? (currentUser.nome||currentUser.usuario) : '' });
+  if(info && info.nome) STATE.modeloAta.importadoEm = new Date().toISOString();
+  delete STATE.modeloAta._erro;
+  MODELO_ATA_HTML = html; MODELO_ATA_VERSAO = STATE.modeloAta.atualizadoEm;
+  saveState(true);
+}
+async function removerModeloAta(){
+  if(semPermissao('ata')) return;
+  const m = modeloAtaInfo(); if(!m || !confirm('Remover o modelo de ata? A prévia volta a usar o texto automático do sistema.')) return;
+  try{ await blobExcluir(m.blob, m.partes); }catch(e){}
+  STATE.modeloAta = null; MODELO_ATA_HTML = null;
+  registrarAcao('Modelo de ata removido');
+  saveState(true); render();
+}
+function baixarModeloAtaWord(){
+  if(!MODELO_ATA_HTML) return;
+  const estilo = 'body{font-family:"Times New Roman",serif;font-size:12pt;line-height:1.5;} table{border-collapse:collapse;} td,th{border:1px solid #000;padding:4pt;}';
+  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>Modelo de ata</title><style>${estilo}</style></head><body>${MODELO_ATA_HTML}</body></html>`;
+  baixarArquivo(BOM+html, 'Modelo_de_Ata_com_campos.doc', 'application/msword');
+}
+function baixarModeloExemplo(){
+  const p = t=>`<p>${t}</p>`;
+  const corpo = `<p style="text-align:center"><b>{{ENTIDADE}}<br>{{SECRETARIA}} — {{FUNDO}}</b></p>
+<p style="text-align:center"><b>ATA DA AUDIÊNCIA PÚBLICA DE PRESTAÇÃO DE CONTAS DA SAÚDE — {{QUADRIMESTRE}}</b></p>`
+  + p('{{DATA_EXTENSO}}, às {{HORA_INICIO_EXTENSO}}, no(a) {{LOCAL}}, realizou-se a Audiência Pública de prestação de contas do {{QUADRIMESTRE_EXTENSO}} (período de {{PERIODO}}), em cumprimento ao art. 36 da Lei Complementar nº 141/2012, sob a presidência de {{PRESIDENTE}}, {{CARGO_PRESIDENTE}}, com a presença de {{NUM_PRESENTES_EXTENSO}} ({{NUM_PRESENTES}}) participantes.')
+  + p('{{RESUMO_DADOS}}')
+  + p('O Município aplicou {{PERCENTUAL_APLICADO}} da receita de impostos e transferências em ações e serviços públicos de saúde; o mínimo legal é {{MINIMO_LEGAL}}.')
+  + p('<b>Retorno dos encaminhamentos anteriores:</b> {{RETORNO_ENCAMINHAMENTOS}}')
+  + p('<b>Perguntas e manifestações:</b>') + p('{{PERGUNTAS}}')
+  + p('<b>Encaminhamentos:</b>') + p('{{ENCAMINHAMENTOS}}')
+  + p('{{CONSIDERACOES}}')
+  + p('Nada mais havendo a tratar, a audiência foi encerrada às {{HORA_FIM_EXTENSO}}. Eu, {{SECRETARIO}}, {{CARGO_SECRETARIO}}, lavrei a presente ata.')
+  + p('<br><br>______________________________<br>{{PRESIDENTE}} — {{CARGO_PRESIDENTE}}')
+  + p('<br>______________________________<br>{{PRESIDENTE_FUNDO}} — Presidente do {{FUNDO}}')
+  + p('{{LISTA_PRESENCA}}');
+  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>Modelo de ata</title><style>body{font-family:"Times New Roman",serif;font-size:12pt;line-height:1.5;text-align:justify;}</style></head><body>${corpo}</body></html>`;
+  baixarArquivo(BOM+html, 'Exemplo_Modelo_de_Ata.doc', 'application/msword');
+}
+function copiarCampoAta(chave){
+  const t = '{{'+chave+'}}';
+  try{ navigator.clipboard.writeText(t).then(()=>showToast(t+' copiado — cole no seu modelo no Word.','success')); }catch(e){ prompt('Copie o campo:', t); }
+}
+
+/* ---------------- Transformar trechos do modelo em campos ---------------- */
+const REGRAS_TRECHOS = [
+  { re:/(?:Aos?|Ao)\s[^.;:]{3,90}?dias?\s+do\s+m[eê]s\s+de\s+[a-zç]+[^.;:]{0,60}?dois\s+mil(?:\s+e\s+[a-zà-úç]+(?:\s+e\s+[a-zà-úç]+)?)?/gi, campo:'DATA_EXTENSO', marcar:true },
+  { re:/\b\d{1,2}\s+de\s+(?:janeiro|fevereiro|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s+de\s+\d{4}\b/gi, campo:'DATA_LONGA', marcar:true },
+  { re:/\b(?:[123]\s*[º°o]|primeiro|segundo|terceiro)\s+quadrimestre(?:\s+(?:de|do\s+ano\s+de)\s+\d{4})?/gi, campo:'QUADRIMESTRE', marcar:true },
+  { re:/(?<=(?<![A-Za-zÀ-ú])[àa]s\s+)(?:[a-zà-úç]+\s+){0,3}horas?(?:\s+e\s+(?:[a-zà-úç]+\s+){0,3}minutos?)?/gi, campo:'HORA_INICIO_EXTENSO', marcar:false },
+  { re:/\b\d{1,2}\/\d{1,2}\/\d{4}\b/g, campo:'DATA', marcar:false },
+  { re:/\b\d{1,2}\s*h\s*\d{2}\b|\b\d{1,2}:\d{2}\b/g, campo:'HORA_INICIO', marcar:false },
+  { re:/\b\d{1,3},\d{1,2}\s?%/g, campo:'PERCENTUAL_APLICADO', marcar:false },
+  { re:/R\$\s?[\d.]+,\d{2}/g, campo:'DESPESA_ASPS', marcar:false },
+  { re:/\b20\d{2}\b/g, campo:'ANO', marcar:false },
+];
+function trechosCandidatos(){
+  const div = document.createElement('div'); div.innerHTML = MODELO_ATA_HTML || '';
+  const texto = div.textContent || '';
+  const vistos = new Map(); const cobertos = [];
+  REGRAS_TRECHOS.forEach(r=>{
+    let m; r.re.lastIndex = 0;
+    while((m = r.re.exec(texto))){
+      const ini = m.index, fim = m.index + m[0].length;
+      if(cobertos.some(([a,b])=>ini<b && fim>a)) continue;   // já dentro de um trecho maior
+      cobertos.push([ini,fim]);
+      const t = m[0].trim();
+      if(/\{\{|\}\}/.test(t)) continue;
+      const k = t;   // grafia exata: "Quadrimestre" e "quadrimestre" são trocados separadamente
+      if(!vistos.has(k)) vistos.set(k, { texto:t, campo: r.campo, marcar: r.marcar, n:0 });
+      vistos.get(k).n++;
+    }
+  });
+  // horários por extenso: o primeiro costuma ser o início e o último o encerramento
+  const horas = Array.from(vistos.values()).filter(x=>x.campo==='HORA_INICIO_EXTENSO');
+  if(horas.length>1){ horas[horas.length-1].campo = 'HORA_FIM_EXTENSO'; }
+  return Array.from(vistos.values()).slice(0, 60);
+}
+/* Troca o texto (dentro de um mesmo trecho de formatação) pelo campo, no modelo inteiro. */
+function substituirNoModelo(trecho, chave){
+  const doc = new DOMParser().parseFromString('<div id="raiz">'+MODELO_ATA_HTML+'</div>', 'text/html');
+  const raiz = doc.getElementById('raiz');
+  const walker = doc.createTreeWalker(raiz, NodeFilter.SHOW_TEXT);
+  let n = 0, no;
+  const nos = []; while((no = walker.nextNode())) nos.push(no);
+  nos.forEach(t=>{ if(t.nodeValue.includes(trecho)){ n += t.nodeValue.split(trecho).length - 1; t.nodeValue = t.nodeValue.split(trecho).join('{{'+chave+'}}'); } });
+  return { html: raiz.innerHTML, n };
+}
+async function aplicarTrechos(){
+  if(semPermissao('ata')) return;
+  const linhas = Array.from(document.querySelectorAll('#trechosAta [data-trecho]'));
+  let html = MODELO_ATA_HTML, total = 0; const falhou = [];
+  linhas.forEach(l=>{
+    const chave = l.querySelector('select').value; if(!chave) return;
+    const trecho = l.getAttribute('data-trecho');
+    const antes = MODELO_ATA_HTML; MODELO_ATA_HTML = html;
+    const r = substituirNoModelo(trecho, chave);
+    MODELO_ATA_HTML = antes;
+    if(r.n){ html = r.html; total += r.n; } else falhou.push(trecho);
+  });
+  if(!total && !falhou.length){ showToast('Escolha o campo de pelo menos um trecho.','warning'); return; }
+  if(total) await gravarModeloAta(html);
+  registrarAcao(`Modelo de ata: ${total} trecho(s) convertido(s) em campos`);
+  render();
+  showToast(`${total} trecho(s) do modelo viraram campos automáticos.` + (falhou.length?` Não consegui converter ${falhou.length} (o texto está dividido em formatações diferentes no arquivo): ${falhou.slice(0,3).join(' | ')}. Edite-os no Word com os campos {{...}}.`:''), falhou.length?'warning':'success');
+}
+async function converterTrechoManual(){
+  if(semPermissao('ata')) return;
+  const trecho = (document.getElementById('trechoManual')?.value || '');
+  const chave = document.getElementById('campoManual')?.value;
+  if(!trecho.trim() || !chave){ showToast('Copie o trecho do modelo e escolha o campo.','warning'); return; }
+  const r = substituirNoModelo(trecho, chave);
+  if(!r.n){ showToast('Não encontrei esse trecho exatamente assim no modelo (confira espaços e pontuação).','warning'); return; }
+  await gravarModeloAta(r.html);
+  registrarAcao('Modelo de ata: trecho convertido em {{'+chave+'}}');
+  render(); showToast(`${r.n} ocorrência(s) trocada(s) por {{${chave}}}.`,'success');
+}
+
+/* ---------------- Quadro "Modelo de ata" na tela da Ata ---------------- */
+function secaoModeloAtaHTML(c, a, pode, ed){
+  const m = modeloAtaInfo();
+  const pronto = modeloAtaPronto();
+  const opcoesCampos = sel => '<option value="">— manter como está —</option>' + CAMPOS_ATA.filter(x=>!['LISTA_PRESENCA','PERGUNTAS','ENCAMINHAMENTOS'].includes(x[0])).map(x=>`<option value="${x[0]}" ${sel===x[0]?'selected':''}>{{${x[0]}}} — ${esc(x[1])}</option>`).join('');
+  const listaCampos = `<div class="campos-ata">${CAMPOS_ATA.map(x=>`<button type="button" class="campo-ata" title="${esc(x[1])} — clique para copiar" onclick="copiarCampoAta('${x[0]}')"><code>{{${x[0]}}}</code><span>${esc(x[1])}</span></button>`).join('')}</div>`;
+  if(!m){
+    return `
+    <div class="card">
+      <h3>📄 Modelo de ata</h3>
+      <div class="subtitle">Tem uma ata no formato da casa? Importe o arquivo (<b>DOC, DOCX, PDF, XLS ou XLSX</b>) e a prévia passa a sair nesse formato, com os dados atuais preenchidos sozinhos. Nos pontos que mudam a cada audiência, escreva campos como <code>{{DATA_EXTENSO}}</code>, <code>{{LOCAL}}</code> ou <code>{{PRESIDENTE_FUNDO}}</code> — ou importe uma ata antiga e deixe o sistema sugerir os trechos que viram campos.</div>
+      ${pode ? `<div class="actions">
+        <button class="btn" onclick="document.getElementById('modeloAtaArq').click()">⭱ Importar modelo de ata</button>
+        <input type="file" id="modeloAtaArq" accept=".doc,.docx,.pdf,.xls,.xlsx" style="display:none" onchange="importarModeloAta(event)">
+        <button class="btn secondary" onclick="baixarModeloExemplo()" title="Um modelo pronto, já com os campos, para abrir no Word e ajustar">⭳ Baixar exemplo de modelo (Word)</button>
+        <button class="btn ghost" onclick="mostrarCamposAta=!mostrarCamposAta;render()">🧩 ${mostrarCamposAta?'Esconder':'Ver'} campos disponíveis</button>
+      </div>` : ''}
+      ${mostrarCamposAta ? listaCampos : ''}
+    </div>`;
+  }
+  if(!pronto) return `<div class="card"><h3>📄 Modelo de ata</h3><div class="muted"><span class="spinner" style="display:inline-block;width:14px;height:14px;vertical-align:middle;margin-right:6px;"></span>Carregando o modelo da nuvem…</div></div>`;
+  const usados = camposUsadosModelo(), desconhecidos = camposDesconhecidosModelo();
+  const trechos = mostrarTrechosAta ? trechosCandidatos() : [];
+  return `
+    <div class="card">
+      <div class="flexrow" style="margin-bottom:6px;">
+        <h3 style="margin:0;">📄 Modelo de ata: ${esc(m.nome||'')}</h3>
+        ${pode ? `<div class="actions">
+          <button class="btn secondary small" onclick="document.getElementById('modeloAtaArq').click()">🔄 Trocar modelo</button>
+          <input type="file" id="modeloAtaArq" accept=".doc,.docx,.pdf,.xls,.xlsx" style="display:none" onchange="importarModeloAta(event)">
+          <button class="btn secondary small" onclick="baixarModeloAtaWord()" title="Baixa o modelo, já com os campos, para ajustar no Word e importar de novo">⭳ Editar no Word</button>
+          <button class="btn ghost small" onclick="removerModeloAta()">🗑 Remover</button>
+        </div>` : ''}
+      </div>
+      <div class="muted" style="font-size:12px;">${esc(String(m.tipo||'').toUpperCase())} · importado por ${esc(m.por||'—')} em ${m.importadoEm?new Date(m.importadoEm).toLocaleString('pt-BR'):'—'} · ${usados.length} campo(s) automático(s) no modelo</div>
+      ${m._erro ? `<div class="alerta-erro" style="margin-top:8px;">Não foi possível ler o modelo na nuvem (${esc(m._erro)}). Importe-o de novo.</div>` : ''}
+      ${m.aviso ? `<div class="alerta-aviso" style="margin-top:8px;">${esc(m.aviso)}</div>` : ''}
+      ${desconhecidos.length ? `<div class="alerta-aviso" style="margin-top:8px;">Campos que o sistema não reconhece (aparecem em vermelho na prévia): ${desconhecidos.map(x=>`<code>${esc(x)}</code>`).join(' ')}. Confira a lista de campos disponíveis.</div>` : ''}
+      <div class="formgrid" style="margin-top:10px;">
+        <div class="field half"><label>Texto da ata</label><select ${ed?'':'disabled'} onchange="setAta('usarModelo', this.value==='1'); render();">
+          <option value="1" ${a.usarModelo!==false?'selected':''}>Usar o modelo importado</option>
+          <option value="0" ${a.usarModelo===false?'selected':''}>Usar o texto automático do sistema</option></select></div>
+        <div class="field half" style="display:flex;align-items:flex-end;"><label class="check" style="text-transform:none;letter-spacing:0;font-weight:500;font-size:13px;color:var(--ink);"><input type="checkbox" ${a.anexarListaModelo!==false?'checked':''} ${ed?'':'disabled'} onchange="setAta('anexarListaModelo', this.checked); render();"> Acrescentar a lista de presença no fim (quando o modelo não tem {{LISTA_PRESENCA}})</label></div>
+      </div>
+      <div class="actions" style="margin-top:6px;">
+        <button class="btn ghost small" onclick="mostrarCamposAta=!mostrarCamposAta;render()">🧩 ${mostrarCamposAta?'Esconder':'Ver'} campos disponíveis</button>
+        ${pode ? `<button class="btn ghost small" onclick="mostrarTrechosAta=!mostrarTrechosAta;render()">🔎 ${mostrarTrechosAta?'Esconder':'Encontrar'} trechos que podem virar campos</button>` : ''}
+      </div>
+      ${mostrarCamposAta ? listaCampos : ''}
+      ${mostrarTrechosAta && pode ? `
+      <div id="trechosAta" class="juncao" style="margin-top:10px;">
+        <h3 style="margin:0 0 4px;">🔎 Trechos do modelo que mudam a cada audiência</h3>
+        <div class="subtitle">Escolha o campo que deve entrar no lugar de cada trecho e clique em <b>Converter</b>. O modelo é salvo já com os campos e, daí em diante, se atualiza sozinho. Os marcados com sugestão são os mais seguros; confira os demais (ex.: uma data pode ser a do período e não a da audiência).</div>
+        ${trechos.length ? trechos.map(t=>`
+          <div class="juncao-item" data-trecho="${esc(t.texto)}">
+            <div style="flex:1;min-width:220px;"><b>“${esc(t.texto.length>120?t.texto.slice(0,119)+'…':t.texto)}”</b>${t.n>1?` <span class="muted">(${t.n} vezes)</span>`:''}</div>
+            <select style="max-width:360px;padding:5px 6px;border:1px solid var(--line);border-radius:6px;">${opcoesCampos(t.marcar?t.campo:'')}</select>
+            ${!t.marcar ? `<span class="muted" style="font-size:11px;">sugestão: {{${t.campo}}}</span>` : ''}
+          </div>`).join('') : '<div class="muted" style="font-size:12.5px;">Não encontrei datas, horários, quadrimestres, anos ou valores no modelo.</div>'}
+        ${trechos.length ? `<div class="actions" style="margin-top:10px;"><button class="btn" onclick="aplicarTrechos()">🧩 Converter os trechos escolhidos</button></div>` : ''}
+        <div class="section-title" style="font-size:13px;">✍️ Converter outro trecho (nomes, locais…)</div>
+        <div class="formgrid">
+          <div class="field half"><label>Trecho do modelo (copie exatamente como está)</label><input id="trechoManual" placeholder="Ex.: Maria da Silva"></div>
+          <div class="field half"><label>Vira o campo</label><select id="campoManual">${opcoesCampos('')}</select></div>
+        </div>
+        <div class="actions" style="margin-top:8px;"><button class="btn secondary" onclick="converterTrechoManual()">Converter este trecho</button></div>
+      </div>` : ''}
+    </div>`;
 }
 
 /* ============================================================
@@ -5568,7 +6105,7 @@ function viewLogAcesso(){
 }
 function exportarLogCsv(){
   const csv = Papa.unparse({ fields:['Usuário','Data','Início','Fim','Módulos e ações'], data: USERS_STATE.logs.map(l=>[l.nomeUsuario||l.usuario, l.data, l.horaInicio, l.horaFinal, (l.comandos||[]).join(' → ')]) }, { delimiter:';' });
-  baixarArquivo('﻿'+csv, 'log_acesso_'+hojeISO()+'.csv', 'text/csv;charset=utf-8');
+  baixarArquivo(BOM+csv, 'log_acesso_'+hojeISO()+'.csv', 'text/csv;charset=utf-8');
 }
 
 /* ============================================================
