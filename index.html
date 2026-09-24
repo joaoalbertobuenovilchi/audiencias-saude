@@ -310,6 +310,11 @@ td.nowrap{white-space:nowrap;}
 .ata-assin span{color:var(--ink-soft);}
 .ata-vazio{color:var(--red);font-style:italic;}
 .ata-modelo p{text-indent:0;}
+.ata-doc .doc-secao{font-size:13.5px;margin:18px 0 8px;letter-spacing:.03em;color:#15263D;}
+.ata-doc p.doc-cab{text-indent:0;line-height:1.8;}
+.ata-doc p.doc-ementa{text-indent:0;margin:6px 0 18px 45%;font-style:italic;text-align:left;}
+.ata-assin.ata-assin-uma{grid-template-columns:minmax(0,360px);justify-content:center;}
+@media (max-width:640px){ .ata-doc p.doc-ementa{margin-left:15%;} }
 .ata-modelo img{max-width:100%;height:auto;}
 .ata-modelo table{border-collapse:collapse;margin:6px 0 12px;max-width:100%;}
 .ata-modelo table td,.ata-modelo table th{border:1px solid #9AA6B6;padding:4px 6px;font-size:12px;vertical-align:top;white-space:normal;background:#fff;color:#15263D;position:static;}
@@ -880,7 +885,7 @@ let usersLoaded = false;
                do administrador.
    - comum:    vê, apresenta, imprime e exporta — não altera nada.
    ============================================================ */
-const OPERADOR_VIEWS_PERMITIDAS = ['area','indicadoresLanc','financeiro','auditorias','apresentacao','ata'];
+const OPERADOR_VIEWS_PERMITIDAS = ['area','indicadoresLanc','financeiro','auditorias','apresentacao','ata','parecer','resolucao'];
 function perfilAtual(){ return currentUser ? (currentUser.perfil || (currentUser.master ? 'master':'comum')) : null; }
 function isMaster(){ return perfilAtual()==='master'; }
 function viewBase(v){ return String(v||'').split(':')[0]; }
@@ -1166,7 +1171,7 @@ function trocarCodigoAcesso(){
    Criação desta versão com nuvem: setembro/2026 (mês 1).
    ============================================================ */
 const APP_CRIACAO = { mes: 9, ano: 2026 };
-const APP_ALTERACAO = 12;
+const APP_ALTERACAO = 14;
 const APP_DATA = '2026-09-24';
 function appVersao(){
   const p = APP_DATA.split('-').map(Number);
@@ -1668,6 +1673,10 @@ let STATE = {
   bases: [],               // índice das planilhas importadas (as linhas ficam nos blobs)
   figuras: [],             // imagens por área/competência: {id, areaId, competenciaId, img, legenda, fonte, incluir, ordem}
   modeloAta: null,         // modelo de ata importado: {nome, tipo, blob, partes, aviso, importadoEm, atualizadoEm, por} (o texto fica no blob 'modelo_ata')
+  modeloParecer: null,     // modelo de parecer importado (texto no blob 'modelo_parecer')
+  modeloResolucao: null,   // modelo de resolução importado (texto no blob 'modelo_resolucao')
+  pareceres: {},           // parecer do Conselho por competência: {compId: {numero, data, comissao, relator, membros[], analise..., conclusao, ressalvas[], ...}}
+  resolucoes: {},          // resolução do Conselho por competência: {compId: {numero, data, reunião, decisao, considerandos[], artigos[], homologação, ...}}
   atas: {},                // ata da audiência por competência: {compId: {data, local, presentes[], perguntas[], encaminhamentos[], ...}}
   indicadores: null,       // catálogo: {id, areaId, nome, unidade, meta, polaridade, fonte, descricao, ativo}
   lancamentos: {},         // {competenciaId: {indicadorId: {valor, obs, por, em}}}
@@ -1833,6 +1842,10 @@ function garantirModulosNovos(){
   if(!STATE.financeiro || typeof STATE.financeiro!=='object') STATE.financeiro = {};
   if(!Array.isArray(STATE.auditorias)) STATE.auditorias = [];
   if(!STATE.atas || typeof STATE.atas!=="object") STATE.atas = {};
+  if(!STATE.pareceres || typeof STATE.pareceres!=="object") STATE.pareceres = {};
+  if(!STATE.resolucoes || typeof STATE.resolucoes!=="object") STATE.resolucoes = {};
+  Object.values(STATE.pareceres).forEach(p=>{ ["membros","documentos","ressalvas"].forEach(k=>{ if(!Array.isArray(p[k])) p[k] = []; }); });
+  Object.values(STATE.resolucoes).forEach(r=>{ ["considerandos","artigos"].forEach(k=>{ if(!Array.isArray(r[k])) r[k] = []; }); });
   Object.values(STATE.atas).forEach(a=>{ ["presentes","perguntas","encaminhamentos"].forEach(k=>{ if(!Array.isArray(a[k])) a[k] = []; }); a.encaminhamentos.forEach(e=>{ if(!e.situacao) e.situacao = "Pendente"; }); });
   if(!STATE.semAuditoria || typeof STATE.semAuditoria!=='object') STATE.semAuditoria = {};
   if(!STATE.imagens || typeof STATE.imagens!=='object') STATE.imagens = {};
@@ -2078,9 +2091,9 @@ function excluirCompetencia(id){
   const nLanc = Object.keys(STATE.lancamentos[id]||{}).length;
   const nAud = STATE.auditorias.filter(a=>a.competenciaId===id).length;
   const temFin = !!STATE.financeiro[id];
-  const temAta = !!(STATE.atas && STATE.atas[id]);
+  const temAta = !!(STATE.atas && STATE.atas[id]) || !!(STATE.pareceres && STATE.pareceres[id]) || !!(STATE.resolucoes && STATE.resolucoes[id]);
   if(nBases || nFig || nLanc || nAud || temFin || temAta){
-    alert(`A competência "${c.rotulo}" já tem dados lançados (${nBases} planilha(s), ${nFig} imagem(ns), ${nLanc} indicador(es), ${nAud} auditoria(s)${temFin?', aplicação em saúde':''}${temAta?', ata da audiência':''}).\n\nPara não perder nada, ela não pode ser excluída. Remova esses dados primeiro, se realmente quiser excluí-la.`);
+    alert(`A competência "${c.rotulo}" já tem dados lançados (${nBases} planilha(s), ${nFig} imagem(ns), ${nLanc} indicador(es), ${nAud} auditoria(s)${temFin?', aplicação em saúde':''}${temAta?', ata / parecer / resolução':''}).\n\nPara não perder nada, ela não pode ser excluída. Remova esses dados primeiro, se realmente quiser excluí-la.`);
     return;
   }
   if(!confirm(`Excluir a competência "${c.rotulo}"?`)) return;
@@ -4696,44 +4709,58 @@ function viewAta(){
       <h3>📝 Considerações finais (opcional)</h3>
       <textarea class="fig-in" style="min-height:80px;" ${ed?'':'disabled'} onchange="setAta('consideracoes', this.value)" placeholder="Ex.: O Conselho Municipal de Saúde manifestou-se favoravelmente à aprovação do relatório…">${esc(a.consideracoes)}</textarea>
     </div>
-    ${secaoModeloAtaHTML(c, a, pode, ed)}
-    <div class="section-title">👁 Prévia da ata${usandoModeloAta(a) ? ' — no formato do modelo importado' : ''}</div>
+    ${secaoModeloHTML('ata', c, a, pode, ed)}
+    <div class="section-title">👁 Prévia da ata${usandoModelo('ata', a) ? ' — no formato do modelo importado' : ''}</div>
     <div class="card" id="ataPrint">${ataPreviewHTML(c, a, false)}</div>`;
 }
 
 /* ============================================================
-   MODELO DE ATA (DOC, DOCX, PDF, XLS, XLSX)
-   O usuário importa a ata no formato da casa. O sistema converte o arquivo
-   em texto formatado e troca os CAMPOS {{...}} pelos dados atuais da
-   audiência (datas por extenso, local, presidente, presentes, perguntas,
-   encaminhamentos, % aplicado etc.).
-   Para modelos antigos, sem campos, o sistema encontra trechos que mudam a
-   cada audiência (datas, horários, "2º quadrimestre de 2025", anos,
+   MODELOS DE DOCUMENTO (Ata, Parecer e Resolução)
+   Para cada documento o usuário pode importar o arquivo no formato da casa
+   (DOC, DOCX, PDF, XLS, XLSX). O sistema converte o arquivo em texto
+   formatado e troca os CAMPOS {{...}} pelos dados atuais (datas por extenso,
+   quadrimestre, % aplicado, presentes, conclusão do parecer etc.).
+   Para modelos antigos, sem campos, o sistema encontra os trechos que mudam
+   a cada quadrimestre (datas, horários, "2º quadrimestre de 2025", anos,
    percentuais) e oferece transformá-los em campos — o modelo é salvo já
-   convertido e passa a se atualizar sozinho nas próximas atas.
-   O arquivo convertido fica guardado na nuvem (documentos "blob").
+   convertido e passa a se atualizar sozinho.
+   O texto do modelo fica na nuvem em documentos "blob" (modelo_ata,
+   modelo_parecer, modelo_resolucao); STATE guarda só os dados do arquivo.
    ============================================================ */
-let MODELO_ATA_HTML = null;          // HTML do modelo (baixado sob demanda)
-let carregandoModeloAta = null;
-let mostrarCamposAta = false, mostrarTrechosAta = false;
-const EXT_MODELO_ATA = ['doc','docx','pdf','xls','xlsx'];
+const EXT_MODELO_DOC = ['doc','docx','pdf','xls','xlsx'];
+/* Configuração de cada documento. As funções são chamadas só na hora do uso
+   (as telas do parecer e da resolução ficam em outro arquivo). */
+const DOCS_MODELO = {
+  ata:       { estado:'modeloAta',       blob:'modelo_ata',       nome:'ata',       o:'a', view:'ata',       set:'setAta',       printId:'ataPrint',
+               dados: c=>ataDe(c.id) || novaAta(c),             auto: (c,d,w)=>ataDocumentoHTML(c,d,w),       campos: ()=>CAMPOS_ATA },
+  parecer:   { estado:'modeloParecer',   blob:'modelo_parecer',   nome:'parecer',   o:'o', view:'parecer',   set:'setParecer',   printId:'parecerPrint',
+               dados: c=>parecerDe(c.id) || novoParecer(c),     auto: (c,d,w)=>parecerDocumentoHTML(c,d,w),   campos: ()=>CAMPOS_PARECER },
+  resolucao: { estado:'modeloResolucao', blob:'modelo_resolucao', nome:'resolução', o:'a', view:'resolucao', set:'setResolucao', printId:'resolucaoPrint',
+               dados: c=>resolucaoDe(c.id) || novaResolucao(c), auto: (c,d,w)=>resolucaoDocumentoHTML(c,d,w), campos: ()=>CAMPOS_RESOLUCAO },
+};
+const MODELO_HTML = {}, MODELO_VERSAO = {}, MODELO_CARREGANDO = {};
+const MODELO_UI = { ata:{campos:false, trechos:false}, parecer:{campos:false, trechos:false}, resolucao:{campos:false, trechos:false} };
 
-function modeloAtaInfo(){ return STATE.modeloAta || null; }
-let MODELO_ATA_VERSAO = '';           // qual versão do modelo está em MODELO_ATA_HTML (muda se outro usuário trocar o modelo)
-function modeloAtaPronto(){
-  const m = modeloAtaInfo();
+function modeloInfo(tipo){ return STATE[DOCS_MODELO[tipo].estado] || null; }
+function modeloPronto(tipo){
+  const m = modeloInfo(tipo);
   if(!m) return true;
-  if(MODELO_ATA_HTML!==null && MODELO_ATA_VERSAO===m.atualizadoEm) return true;
-  if(!carregandoModeloAta){
+  if(MODELO_HTML[tipo]!==undefined && MODELO_HTML[tipo]!==null && MODELO_VERSAO[tipo]===m.atualizadoEm) return true;
+  if(!MODELO_CARREGANDO[tipo]){
     const v = currentView, versao = m.atualizadoEm;
-    carregandoModeloAta = blobLer(m.blob, m.partes)
-      .then(h=>{ MODELO_ATA_HTML = h; })
-      .catch(e=>{ MODELO_ATA_HTML = ''; m._erro = e.message || 'erro ao ler'; })
-      .finally(()=>{ MODELO_ATA_VERSAO = versao; carregandoModeloAta = null; if(currentView===v) render(); });
+    MODELO_CARREGANDO[tipo] = blobLer(m.blob, m.partes)
+      .then(h=>{ MODELO_HTML[tipo] = h; })
+      .catch(e=>{ MODELO_HTML[tipo] = ''; m._erro = e.message || 'erro ao ler'; })
+      .finally(()=>{ MODELO_VERSAO[tipo] = versao; MODELO_CARREGANDO[tipo] = null; if(currentView===v) render(); });
   }
   return false;
 }
-function usandoModeloAta(a){ return !!(modeloAtaInfo() && modeloAtaPronto() && MODELO_ATA_HTML && (!a || a.usarModelo!==false)); }
+async function lerModeloHTML(tipo){
+  const m = modeloInfo(tipo); if(!m) return '';
+  if(modeloPronto(tipo)) return MODELO_HTML[tipo] || '';
+  return await blobLer(m.blob, m.partes);
+}
+function usandoModelo(tipo, d){ return !!(modeloInfo(tipo) && modeloPronto(tipo) && MODELO_HTML[tipo] && (!d || d.usarModelo!==false)); }
 
 /* ---------------- Campos disponíveis ---------------- */
 function mesesPorExtenso(c){ const ms = String(c.meses||'').split('·').map(s=>s.trim().toLowerCase()).filter(Boolean); return ms.length>1 ? ms.slice(0,-1).join(', ')+' e '+ms[ms.length-1] : (ms[0]||''); }
@@ -4810,46 +4837,81 @@ const CAMPOS_ATA = [
 const CAMPOS_ATA_MAPA = {}; CAMPOS_ATA.forEach(x=>{ CAMPOS_ATA_MAPA[x[0]] = x; });
 function chaveCampo(txt){ return normTxt(txt).toUpperCase().replace(/[^A-Z0-9]+/g,'_').replace(/^_|_$/g,''); }
 
+/* Nome do município, tirado do nome da entidade ("Prefeitura Municipal de Jaborandi" → "Jaborandi"). */
+function municipioNome(){
+  const e = STATE.entidade || {};
+  const n = String(e.nome || e.nomeFantasia || '').trim();
+  return n.replace(/^(prefeitura|munic[ií]pio|c[aâ]mara)(\s+municipal)?\s+(de|da|do|dos|das)\s+/i, '').trim();
+}
+CAMPOS_ATA.push(['MUNICIPIO','Nome do município (ex.: Jaborandi)', ()=>municipioNome()]);
+/* Campos que valem para qualquer documento (entidade, quadrimestre, dados apresentados). */
+const CHAVES_COMUNS = ['ENTIDADE','MUNICIPIO','SECRETARIA','GESTOR','CARGO_GESTOR','FUNDO','PRESIDENTE_FUNDO','CNPJ','COMPETENCIA','QUADRIMESTRE','QUADRIMESTRE_EXTENSO','ANO','MESES','PERIODO','PERIODO_INICIO','PERIODO_FIM','PRAZO_LEGAL',
+  'RESUMO_DADOS','PERCENTUAL_APLICADO','MINIMO_LEGAL','SITUACAO_LC141','DESPESA_ASPS','RECEITA_BASE','INDICADORES_LANCADOS','INDICADORES_ATINGIDOS','INDICADORES_ABAIXO','NUM_AUDITORIAS','AUDITORIAS','RETORNO_ENCAMINHAMENTOS','DATA_HOJE','DATA_HOJE_EXTENSO'];
+function camposComuns(){ return CAMPOS_ATA.filter(x=>CHAVES_COMUNS.includes(x[0])); }
+/* Campos das datas do próprio documento (data da ata, do parecer ou da resolução). */
+function camposDataDoc(rot){
+  return [
+    ['DATA', `Data d${rot} (29/09/2026)`, (c,d)=>d.data?fmtDateBR(d.data):''],
+    ['DATA_LONGA', `Data d${rot} (29 de setembro de 2026)`, (c,d)=>dataLongaBR(d.data)],
+    ['DATA_EXTENSO', `Data d${rot} por extenso (Aos vinte e nove dias do mês de setembro do ano de dois mil e vinte e seis)`, (c,d)=>dataPorExtenso(d.data)],
+    ['DATA_EXTENSO_SIMPLES', `Data d${rot} por extenso (vinte e nove de setembro de dois mil e vinte e seis)`, (c,d)=>dataExtensoSimples(d.data)],
+  ];
+}
+const _MAPAS_CAMPOS = {};
+function camposDoc(tipo){ return DOCS_MODELO[tipo].campos(); }
+function mapaCampos(tipo){
+  const lista = camposDoc(tipo);
+  const m = _MAPAS_CAMPOS[tipo];
+  if(m && m._n===lista.length) return m;
+  const novo = { _n: lista.length }; lista.forEach(x=>{ novo[x[0]] = x; });
+  return (_MAPAS_CAMPOS[tipo] = novo);
+}
+function camposTodosMapa(){ return Object.assign({}, mapaCampos('ata'), mapaCampos('parecer'), mapaCampos('resolucao')); }
+
 /* ---------------- Montagem da prévia a partir do modelo ---------------- */
-function valorCampoAta(chave, c, a){
-  const def = CAMPOS_ATA_MAPA[chave]; if(!def) return null;
-  let v; try{ v = def[2](c, a); }catch(e){ v = ''; }
+function valorCampoDoc(tipo, chave, c, d){
+  const def = mapaCampos(tipo)[chave]; if(!def || chave==='_n') return null;
+  let v; try{ v = def[2](c, d); }catch(e){ v = ''; }
   return v;
 }
-function renderModeloAta(c, a, paraWord){
-  let html = MODELO_ATA_HTML || '';
+function renderModelo(tipo, c, d, paraWord){
+  const mapa = mapaCampos(tipo);
+  let html = MODELO_HTML[tipo] || '';
   // campos de bloco sozinhos num parágrafo: o parágrafo inteiro vira o bloco (tabela, lista)
   html = html.replace(/<p[^>]*>\s*\{\{\s*([^{}]+?)\s*\}\}\s*<\/p>/gi, (m, nome)=>{
-    const v = valorCampoAta(chaveCampo(nome), c, a);
+    const v = valorCampoDoc(tipo, chaveCampo(nome), c, d);
     return v && typeof v==='object' ? v.html : m;
   });
   html = html.replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (m, nome)=>{
     const chave = chaveCampo(nome);
-    const def = CAMPOS_ATA_MAPA[chave];
+    const def = chave!=='_n' && mapa[chave];
     if(!def) return `<span class="ata-vazio" title="Campo desconhecido">${esc(m)}</span>`;
-    const v = valorCampoAta(chave, c, a);
+    const v = valorCampoDoc(tipo, chave, c, d);
     if(v && typeof v==='object') return v.html;
     if(v===null || v===undefined || String(v).trim()==='') return `<span class="ata-vazio">[${esc(def[1].split(' (')[0].toLowerCase())}]</span>`;
     return esc(v);
   });
-  const temLista = /\{\{\s*lista[\s_]*presen/i.test(MODELO_ATA_HTML||'');
-  if(a.anexarListaModelo!==false && !temLista){
-    html += (paraWord ? '<br style="page-break-before:always" clear="all">' : '<div class="ata-quebra"></div>') + listaPresencaHTML(c, a, false, paraWord);
+  if(tipo==='ata'){
+    const temLista = /\{\{\s*lista[\s_]*presen/i.test(MODELO_HTML[tipo]||'');
+    if(d.anexarListaModelo!==false && !temLista){
+      html += (paraWord ? '<br style="page-break-before:always" clear="all">' : '<div class="ata-quebra"></div>') + listaPresencaHTML(c, d, false, paraWord);
+    }
   }
   return `<div class="ata-doc ata-modelo">${html}</div>`;
 }
 /* Prévia usada na tela, na impressão e no Word: modelo importado ou texto automático. */
-function ataPreviewHTML(c, a, paraWord){
-  return usandoModeloAta(a) ? renderModeloAta(c, a, paraWord) : ataDocumentoHTML(c, a, paraWord);
+function docPreviewHTML(tipo, c, d, paraWord){
+  return usandoModelo(tipo, d) ? renderModelo(tipo, c, d, paraWord) : DOCS_MODELO[tipo].auto(c, d, paraWord);
 }
-function camposDesconhecidosModelo(){
-  const set = new Set();
-  String(MODELO_ATA_HTML||'').replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (m, nome)=>{ if(!CAMPOS_ATA_MAPA[chaveCampo(nome)]) set.add(m); return m; });
+function ataPreviewHTML(c, a, paraWord){ return docPreviewHTML('ata', c, a, paraWord); }
+function camposDesconhecidosModelo(tipo){
+  const set = new Set(), mapa = mapaCampos(tipo);
+  String(MODELO_HTML[tipo]||'').replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (m, nome)=>{ const k = chaveCampo(nome); if(k==='_n' || !mapa[k]) set.add(m); return m; });
   return Array.from(set);
 }
-function camposUsadosModelo(){
-  const set = new Set();
-  String(MODELO_ATA_HTML||'').replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (m, nome)=>{ const k = chaveCampo(nome); if(CAMPOS_ATA_MAPA[k]) set.add(k); return m; });
+function camposUsadosModelo(tipo){
+  const set = new Set(), mapa = mapaCampos(tipo);
+  String(MODELO_HTML[tipo]||'').replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (m, nome)=>{ const k = chaveCampo(nome); if(k!=='_n' && mapa[k]) set.add(k); return m; });
   return Array.from(set);
 }
 
@@ -4872,7 +4934,7 @@ function sanitizarHTML(html){
 function normalizarMarcadores(html){
   // as marcações de formatação que estavam no meio do campo vão para logo depois dele (mantém o HTML equilibrado)
   html = String(html||'').replace(/\{\{((?:[^{}<]|<[^>]*>)*?)\}\}/g, (m, dentro)=>'{{'+dentro.replace(/<[^>]*>/g,'').replace(/&nbsp;/g,' ').trim()+'}}'+(dentro.match(/<[^>]*>/g)||[]).join(''));
-  html = html.replace(/«\s*([A-Za-zÀ-ú0-9_ ]{2,40})\s*»/g, (m, nome)=> CAMPOS_ATA_MAPA[chaveCampo(nome)] ? '{{'+chaveCampo(nome)+'}}' : m);
+  html = html.replace(/«\s*([A-Za-zÀ-ú0-9_ ]{2,40})\s*»/g, (m, nome)=> camposTodosMapa()[chaveCampo(nome)] ? '{{'+chaveCampo(nome)+'}}' : m);
   return html;
 }
 function textoParaParagrafos(texto){
@@ -5001,15 +5063,16 @@ async function docxParaHTML(buf){
   return { html: r.value, aviso:'' };
 }
 let importandoModelo = false;
-async function importarModeloAta(ev){
-  if(semPermissao('ata')){ ev.target.value=''; return; }
+async function importarModelo(ev, tipo){
+  const cfg = DOCS_MODELO[tipo];
+  if(semPermissao(cfg.view)){ ev.target.value=''; return; }
   const file = ev.target.files[0]; ev.target.value = ''; if(!file) return;
   const ext = file.name.split('.').pop().toLowerCase();
-  if(!EXT_MODELO_ATA.includes(ext)){ showToast('Use um arquivo DOC, DOCX, PDF, XLS ou XLSX.','warning'); return; }
+  if(!EXT_MODELO_DOC.includes(ext)){ showToast('Use um arquivo DOC, DOCX, PDF, XLS ou XLSX.','warning'); return; }
   if(importandoModelo) return;
   importandoModelo = true;
   try{
-    showToast('Lendo o modelo de ata…');
+    showToast(`Lendo o modelo de ${cfg.nome}…`);
     const buf = await file.arrayBuffer();
     let r;
     if(ext==='docx') r = await docxParaHTML(buf);
@@ -5018,57 +5081,77 @@ async function importarModeloAta(ev){
     else r = await planilhaParaHTML(buf);
     const html = sanitizarHTML(normalizarMarcadores(r.html));
     if(!html.replace(/<[^>]*>/g,'').trim()) throw new Error('o arquivo não tem texto aproveitável');
-    await gravarModeloAta(html, { nome: file.name, tipo: ext, aviso: r.aviso });
-    const n = camposUsadosModelo().length;
-    registrarAcao('Modelo de ata importado: '+file.name);
-    mostrarTrechosAta = !n;
+    await gravarModelo(tipo, html, { nome: file.name, tipo: ext, aviso: r.aviso });
+    const n = camposUsadosModelo(tipo).length;
+    registrarAcao(`Modelo de ${cfg.nome} importado: ${file.name}`);
+    MODELO_UI[tipo].trechos = !n;
     render();
     showToast(n ? `Modelo importado com ${n} campo(s) automático(s).` : 'Modelo importado. Ele ainda não tem campos {{...}} — veja abaixo os trechos que podem virar campos.', 'success');
   }catch(e){ console.error(e); showToast('Não foi possível ler o modelo: '+(e.message||e),'error'); }
   finally{ importandoModelo = false; }
 }
-async function gravarModeloAta(html, info){
-  const ant = modeloAtaInfo();
-  const partes = await blobSalvar('modelo_ata', html, ant ? ant.partes : 0);
-  STATE.modeloAta = Object.assign({}, ant||{}, info||{}, { blob:'modelo_ata', partes, atualizadoEm: new Date().toISOString(), por: currentUser ? (currentUser.nome||currentUser.usuario) : '' });
-  if(info && info.nome) STATE.modeloAta.importadoEm = new Date().toISOString();
-  delete STATE.modeloAta._erro;
-  MODELO_ATA_HTML = html; MODELO_ATA_VERSAO = STATE.modeloAta.atualizadoEm;
+async function gravarModelo(tipo, html, info){
+  const cfg = DOCS_MODELO[tipo];
+  const ant = modeloInfo(tipo);
+  const partes = await blobSalvar(cfg.blob, html, ant ? ant.partes : 0);
+  const novo = Object.assign({}, ant||{}, info||{}, { blob: cfg.blob, partes, atualizadoEm: new Date().toISOString(), por: currentUser ? (currentUser.nome||currentUser.usuario) : '' });
+  if(info && info.nome) novo.importadoEm = new Date().toISOString();
+  delete novo._erro;
+  STATE[cfg.estado] = novo;
+  MODELO_HTML[tipo] = html; MODELO_VERSAO[tipo] = novo.atualizadoEm;
   saveState(true);
 }
-async function removerModeloAta(){
-  if(semPermissao('ata')) return;
-  const m = modeloAtaInfo(); if(!m || !confirm('Remover o modelo de ata? A prévia volta a usar o texto automático do sistema.')) return;
+async function removerModelo(tipo){
+  const cfg = DOCS_MODELO[tipo];
+  if(semPermissao(cfg.view)) return;
+  const m = modeloInfo(tipo); if(!m || !confirm(`Remover o modelo de ${cfg.nome}? A prévia volta a usar o texto automático do sistema.`)) return;
   try{ await blobExcluir(m.blob, m.partes); }catch(e){}
-  STATE.modeloAta = null; MODELO_ATA_HTML = null;
-  registrarAcao('Modelo de ata removido');
+  STATE[cfg.estado] = null; MODELO_HTML[tipo] = null;
+  registrarAcao(`Modelo de ${cfg.nome} removido`);
   saveState(true); render();
 }
-function baixarModeloAtaWord(){
-  if(!MODELO_ATA_HTML) return;
-  const estilo = 'body{font-family:"Times New Roman",serif;font-size:12pt;line-height:1.5;} table{border-collapse:collapse;} td,th{border:1px solid #000;padding:4pt;}';
-  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>Modelo de ata</title><style>${estilo}</style></head><body>${MODELO_ATA_HTML}</body></html>`;
-  baixarArquivo(BOM+html, 'Modelo_de_Ata_com_campos.doc', 'application/msword');
+const ESTILO_WORD_DOC = 'body{font-family:"Times New Roman",serif;font-size:12pt;line-height:1.5;text-align:justify;} .ata-ent{text-align:center;font-weight:bold;font-size:11pt;} .ata-tit{text-align:center;font-size:14pt;margin:14pt 0 4pt;} .ata-sub{text-align:center;font-size:10pt;margin-bottom:14pt;} .doc-secao{font-size:12pt;margin:12pt 0 6pt;} table{border-collapse:collapse;width:100%;} th,td{border:1px solid #000;padding:4pt;font-size:10pt;text-align:left;vertical-align:top;} .ata-vaziarow td{height:22pt;} .ata-assin{margin-top:40pt;} .ata-assin div{display:inline-block;width:45%;text-align:center;margin-right:4%;margin-bottom:30pt;} .ata-assin .linha{border-top:1px solid #000;margin-bottom:4pt;height:1px;} .ata-vazio{color:#c00;} .ata-modelo img{max-width:100%;}';
+function htmlWord(titulo, corpo){
+  return `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>${esc(titulo)}</title><style>${ESTILO_WORD_DOC}</style></head><body>${corpo}</body></html>`;
 }
-function baixarModeloExemplo(){
+function baixarModeloWord(tipo){
+  if(!MODELO_HTML[tipo]) return;
+  baixarArquivo(BOM+htmlWord('Modelo', MODELO_HTML[tipo]), `Modelo_de_${nomeArquivoSeguro(DOCS_MODELO[tipo].nome)}_com_campos.doc`, 'application/msword');
+}
+function exemploModeloCorpo(tipo){
   const p = t=>`<p>${t}</p>`;
-  const corpo = `<p style="text-align:center"><b>{{ENTIDADE}}<br>{{SECRETARIA}} — {{FUNDO}}</b></p>
-<p style="text-align:center"><b>ATA DA AUDIÊNCIA PÚBLICA DE PRESTAÇÃO DE CONTAS DA SAÚDE — {{QUADRIMESTRE}}</b></p>`
-  + p('{{DATA_EXTENSO}}, às {{HORA_INICIO_EXTENSO}}, no(a) {{LOCAL}}, realizou-se a Audiência Pública de prestação de contas do {{QUADRIMESTRE_EXTENSO}} (período de {{PERIODO}}), em cumprimento ao art. 36 da Lei Complementar nº 141/2012, sob a presidência de {{PRESIDENTE}}, {{CARGO_PRESIDENTE}}, com a presença de {{NUM_PRESENTES_EXTENSO}} ({{NUM_PRESENTES}}) participantes.')
-  + p('{{RESUMO_DADOS}}')
-  + p('O Município aplicou {{PERCENTUAL_APLICADO}} da receita de impostos e transferências em ações e serviços públicos de saúde; o mínimo legal é {{MINIMO_LEGAL}}.')
-  + p('<b>Retorno dos encaminhamentos anteriores:</b> {{RETORNO_ENCAMINHAMENTOS}}')
-  + p('<b>Perguntas e manifestações:</b>') + p('{{PERGUNTAS}}')
-  + p('<b>Encaminhamentos:</b>') + p('{{ENCAMINHAMENTOS}}')
-  + p('{{CONSIDERACOES}}')
-  + p('Nada mais havendo a tratar, a audiência foi encerrada às {{HORA_FIM_EXTENSO}}. Eu, {{SECRETARIO}}, {{CARGO_SECRETARIO}}, lavrei a presente ata.')
-  + p('<br><br>______________________________<br>{{PRESIDENTE}} — {{CARGO_PRESIDENTE}}')
-  + p('<br>______________________________<br>{{PRESIDENTE_FUNDO}} — Presidente do {{FUNDO}}')
-  + p('{{LISTA_PRESENCA}}');
-  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>Modelo de ata</title><style>body{font-family:"Times New Roman",serif;font-size:12pt;line-height:1.5;text-align:justify;}</style></head><body>${corpo}</body></html>`;
-  baixarArquivo(BOM+html, 'Exemplo_Modelo_de_Ata.doc', 'application/msword');
+  const cab = `<p style="text-align:center"><b>{{ENTIDADE}}<br>{{SECRETARIA}} — {{FUNDO}}</b></p>`;
+  if(tipo==='parecer') return `<p style="text-align:center"><b>{{CONSELHO}}<br>{{COMISSAO}}</b></p>
+<p style="text-align:center"><b>PARECER Nº {{NUMERO}}</b></p>`
+    + p('<b>Interessado:</b> {{SECRETARIA}} / {{FUNDO}}<br><b>Assunto:</b> Relatório Detalhado do Quadrimestre Anterior — {{QUADRIMESTRE}} ({{PERIODO}})<br><b>Relator(a):</b> {{RELATOR}}')
+    + p('<b>I — RELATÓRIO</b>') + p('Trata-se da análise do RDQA do {{QUADRIMESTRE_EXTENSO}}, apresentado em audiência pública realizada em {{DATA_AUDIENCIA}}, no(a) {{LOCAL_AUDIENCIA}}.') + p('{{DOCUMENTOS_ANALISADOS}}')
+    + p('<b>II — ANÁLISE</b>') + p('<b>1. Recursos aplicados.</b> {{ANALISE_FINANCEIRA}}') + p('<b>2. Auditorias.</b> {{ANALISE_AUDITORIAS}}') + p('<b>3. Oferta e produção de serviços.</b> {{ANALISE_SERVICOS}}') + p('<b>4. Indicadores.</b> {{ANALISE_INDICADORES}}')
+    + p('<b>III — CONCLUSÃO</b>') + p('{{CONCLUSAO_TEXTO}}') + p('{{RESSALVAS}}') + p('{{CONSIDERACOES}}')
+    + p('É o parecer.') + p('{{MUNICIPIO}}, {{DATA_LONGA}}.') + p('{{ASSINATURAS}}');
+  if(tipo==='resolucao') return `<p style="text-align:center"><b>{{CONSELHO}}</b></p>
+<p style="text-align:center"><b>RESOLUÇÃO Nº {{NUMERO}}, DE {{DATA_LONGA}}</b></p>
+<p style="margin-left:40%"><i>{{EMENTA}}</i></p>`
+    + p('O Plenário do {{CONSELHO}}, em sua {{NUMERO_REUNIAO}}ª Reunião {{TIPO_REUNIAO}}, realizada em {{DATA_REUNIAO}}, no uso de suas competências regimentais e das atribuições conferidas pela Lei nº 8.080/1990, pela Lei nº 8.142/1990 e pela Lei Complementar nº 141/2012, e')
+    + p('{{CONSIDERANDOS}}') + p('<b>RESOLVE:</b>') + p('{{ARTIGOS}}')
+    + p('{{MUNICIPIO}}, {{DATA_LONGA}}.') + p('<br>______________________________<br>{{PRESIDENTE_CONSELHO}}<br>{{CARGO_PRESIDENTE_CONSELHO}}') + p('{{HOMOLOGACAO}}');
+  return cab + `<p style="text-align:center"><b>ATA DA AUDIÊNCIA PÚBLICA DE PRESTAÇÃO DE CONTAS DA SAÚDE — {{QUADRIMESTRE}}</b></p>`
+    + p('{{DATA_EXTENSO}}, às {{HORA_INICIO_EXTENSO}}, no(a) {{LOCAL}}, realizou-se a Audiência Pública de prestação de contas do {{QUADRIMESTRE_EXTENSO}} (período de {{PERIODO}}), em cumprimento ao art. 36 da Lei Complementar nº 141/2012, sob a presidência de {{PRESIDENTE}}, {{CARGO_PRESIDENTE}}, com a presença de {{NUM_PRESENTES_EXTENSO}} ({{NUM_PRESENTES}}) participantes.')
+    + p('{{RESUMO_DADOS}}')
+    + p('O Município aplicou {{PERCENTUAL_APLICADO}} da receita de impostos e transferências em ações e serviços públicos de saúde; o mínimo legal é {{MINIMO_LEGAL}}.')
+    + p('<b>Retorno dos encaminhamentos anteriores:</b> {{RETORNO_ENCAMINHAMENTOS}}')
+    + p('<b>Perguntas e manifestações:</b>') + p('{{PERGUNTAS}}')
+    + p('<b>Encaminhamentos:</b>') + p('{{ENCAMINHAMENTOS}}')
+    + p('{{CONSIDERACOES}}')
+    + p('Nada mais havendo a tratar, a audiência foi encerrada às {{HORA_FIM_EXTENSO}}. Eu, {{SECRETARIO}}, {{CARGO_SECRETARIO}}, lavrei a presente ata.')
+    + p('<br><br>______________________________<br>{{PRESIDENTE}} — {{CARGO_PRESIDENTE}}')
+    + p('<br>______________________________<br>{{PRESIDENTE_FUNDO}} — Presidente do {{FUNDO}}')
+    + p('{{LISTA_PRESENCA}}');
 }
-function copiarCampoAta(chave){
+function baixarModeloExemplo(tipo){
+  const nome = DOCS_MODELO[tipo].nome;
+  baixarArquivo(BOM+htmlWord('Modelo de '+nome, exemploModeloCorpo(tipo)), `Exemplo_Modelo_de_${nomeArquivoSeguro(nome)}.doc`, 'application/msword');
+}
+function copiarCampoDoc(chave){
   const t = '{{'+chave+'}}';
   try{ navigator.clipboard.writeText(t).then(()=>showToast(t+' copiado — cole no seu modelo no Word.','success')); }catch(e){ prompt('Copie o campo:', t); }
 }
@@ -5083,10 +5166,13 @@ const REGRAS_TRECHOS = [
   { re:/\b\d{1,2}\s*h\s*\d{2}\b|\b\d{1,2}:\d{2}\b/g, campo:'HORA_INICIO', marcar:false },
   { re:/\b\d{1,3},\d{1,2}\s?%/g, campo:'PERCENTUAL_APLICADO', marcar:false },
   { re:/R\$\s?[\d.]+,\d{2}/g, campo:'DESPESA_ASPS', marcar:false },
+  { re:/\b\d{1,3}\s*\/\s*20\d{2}\b/g, campo:'NUMERO', marcar:false },
   { re:/\b20\d{2}\b/g, campo:'ANO', marcar:false },
 ];
-function trechosCandidatos(){
-  const div = document.createElement('div'); div.innerHTML = MODELO_ATA_HTML || '';
+function trechosCandidatos(tipo){
+  const mapa = mapaCampos(tipo);
+  // quebra de linha no fim de cada parágrafo/célula, para o texto de um não grudar no do outro
+  const div = document.createElement('div'); div.innerHTML = String(MODELO_HTML[tipo] || '').replace(/<\/(p|div|li|h[1-6]|tr|td|th)>|<br\s*\/?>/gi, m=>m+' \n');
   const texto = div.textContent || '';
   const vistos = new Map(); const cobertos = [];
   REGRAS_TRECHOS.forEach(r=>{
@@ -5098,87 +5184,88 @@ function trechosCandidatos(){
       const t = m[0].trim();
       if(/\{\{|\}\}/.test(t)) continue;
       const k = t;   // grafia exata: "Quadrimestre" e "quadrimestre" são trocados separadamente
-      if(!vistos.has(k)) vistos.set(k, { texto:t, campo: r.campo, marcar: r.marcar, n:0 });
+      const existe = !!mapa[r.campo];
+      if(!vistos.has(k)) vistos.set(k, { texto:t, campo: existe ? r.campo : '', marcar: existe && r.marcar, n:0 });
       vistos.get(k).n++;
     }
   });
   // horários por extenso: o primeiro costuma ser o início e o último o encerramento
   const horas = Array.from(vistos.values()).filter(x=>x.campo==='HORA_INICIO_EXTENSO');
-  if(horas.length>1){ horas[horas.length-1].campo = 'HORA_FIM_EXTENSO'; }
+  if(horas.length>1 && mapa.HORA_FIM_EXTENSO){ horas[horas.length-1].campo = 'HORA_FIM_EXTENSO'; }
   return Array.from(vistos.values()).slice(0, 60);
 }
 /* Troca o texto (dentro de um mesmo trecho de formatação) pelo campo, no modelo inteiro. */
-function substituirNoModelo(trecho, chave){
-  const doc = new DOMParser().parseFromString('<div id="raiz">'+MODELO_ATA_HTML+'</div>', 'text/html');
+function substituirNoHTML(html, trecho, chave){
+  const doc = new DOMParser().parseFromString('<div id="raiz">'+html+'</div>', 'text/html');
   const raiz = doc.getElementById('raiz');
   const walker = doc.createTreeWalker(raiz, NodeFilter.SHOW_TEXT);
-  let n = 0, no;
-  const nos = []; while((no = walker.nextNode())) nos.push(no);
+  let n = 0, no; const nos = [];
+  while((no = walker.nextNode())) nos.push(no);
   nos.forEach(t=>{ if(t.nodeValue.includes(trecho)){ n += t.nodeValue.split(trecho).length - 1; t.nodeValue = t.nodeValue.split(trecho).join('{{'+chave+'}}'); } });
   return { html: raiz.innerHTML, n };
 }
-async function aplicarTrechos(){
-  if(semPermissao('ata')) return;
-  const linhas = Array.from(document.querySelectorAll('#trechosAta [data-trecho]'));
-  let html = MODELO_ATA_HTML, total = 0; const falhou = [];
+async function aplicarTrechos(tipo){
+  if(semPermissao(DOCS_MODELO[tipo].view)) return;
+  const linhas = Array.from(document.querySelectorAll(`#trechos_${tipo} [data-trecho]`));
+  let html = MODELO_HTML[tipo], total = 0; const falhou = [];
   linhas.forEach(l=>{
     const chave = l.querySelector('select').value; if(!chave) return;
-    const trecho = l.getAttribute('data-trecho');
-    const antes = MODELO_ATA_HTML; MODELO_ATA_HTML = html;
-    const r = substituirNoModelo(trecho, chave);
-    MODELO_ATA_HTML = antes;
-    if(r.n){ html = r.html; total += r.n; } else falhou.push(trecho);
+    const r = substituirNoHTML(html, l.getAttribute('data-trecho'), chave);
+    if(r.n){ html = r.html; total += r.n; } else falhou.push(l.getAttribute('data-trecho'));
   });
   if(!total && !falhou.length){ showToast('Escolha o campo de pelo menos um trecho.','warning'); return; }
-  if(total) await gravarModeloAta(html);
-  registrarAcao(`Modelo de ata: ${total} trecho(s) convertido(s) em campos`);
+  if(total) await gravarModelo(tipo, html);
+  registrarAcao(`Modelo de ${DOCS_MODELO[tipo].nome}: ${total} trecho(s) convertido(s) em campos`);
   render();
   showToast(`${total} trecho(s) do modelo viraram campos automáticos.` + (falhou.length?` Não consegui converter ${falhou.length} (o texto está dividido em formatações diferentes no arquivo): ${falhou.slice(0,3).join(' | ')}. Edite-os no Word com os campos {{...}}.`:''), falhou.length?'warning':'success');
 }
-async function converterTrechoManual(){
-  if(semPermissao('ata')) return;
-  const trecho = (document.getElementById('trechoManual')?.value || '');
-  const chave = document.getElementById('campoManual')?.value;
+async function converterTrechoManual(tipo){
+  if(semPermissao(DOCS_MODELO[tipo].view)) return;
+  const trecho = (document.getElementById('trechoManual_'+tipo)?.value || '');
+  const chave = document.getElementById('campoManual_'+tipo)?.value;
   if(!trecho.trim() || !chave){ showToast('Copie o trecho do modelo e escolha o campo.','warning'); return; }
-  const r = substituirNoModelo(trecho, chave);
+  const r = substituirNoHTML(MODELO_HTML[tipo], trecho, chave);
   if(!r.n){ showToast('Não encontrei esse trecho exatamente assim no modelo (confira espaços e pontuação).','warning'); return; }
-  await gravarModeloAta(r.html);
-  registrarAcao('Modelo de ata: trecho convertido em {{'+chave+'}}');
+  await gravarModelo(tipo, r.html);
+  registrarAcao(`Modelo de ${DOCS_MODELO[tipo].nome}: trecho convertido em {{${chave}}}`);
   render(); showToast(`${r.n} ocorrência(s) trocada(s) por {{${chave}}}.`,'success');
 }
 
-/* ---------------- Quadro "Modelo de ata" na tela da Ata ---------------- */
-function secaoModeloAtaHTML(c, a, pode, ed){
-  const m = modeloAtaInfo();
-  const pronto = modeloAtaPronto();
-  const opcoesCampos = sel => '<option value="">— manter como está —</option>' + CAMPOS_ATA.filter(x=>!['LISTA_PRESENCA','PERGUNTAS','ENCAMINHAMENTOS'].includes(x[0])).map(x=>`<option value="${x[0]}" ${sel===x[0]?'selected':''}>{{${x[0]}}} — ${esc(x[1])}</option>`).join('');
-  const listaCampos = `<div class="campos-ata">${CAMPOS_ATA.map(x=>`<button type="button" class="campo-ata" title="${esc(x[1])} — clique para copiar" onclick="copiarCampoAta('${x[0]}')"><code>{{${x[0]}}}</code><span>${esc(x[1])}</span></button>`).join('')}</div>`;
+/* ---------------- Quadro "Modelo de ..." nas telas da Ata, do Parecer e da Resolução ---------------- */
+function secaoModeloHTML(tipo, c, d, pode, ed){
+  const cfg = DOCS_MODELO[tipo], ui = MODELO_UI[tipo];
+  const m = modeloInfo(tipo);
+  const pronto = modeloPronto(tipo);
+  const campos = camposDoc(tipo);
+  const blocos = campos.filter(x=>{ try{ const v = x[2](c, d); return v && typeof v==='object'; }catch(e){ return false; } }).map(x=>x[0]);
+  const opcoesCampos = sel => '<option value="">— manter como está —</option>' + campos.filter(x=>!blocos.includes(x[0])).map(x=>`<option value="${x[0]}" ${sel===x[0]?'selected':''}>{{${x[0]}}} — ${esc(x[1])}</option>`).join('');
+  const listaCampos = `<div class="campos-ata">${campos.map(x=>`<button type="button" class="campo-ata" title="${esc(x[1])} — clique para copiar" onclick="copiarCampoDoc('${x[0]}')"><code>{{${x[0]}}}</code><span>${esc(x[1])}</span></button>`).join('')}</div>`;
+  const inputArq = `<input type="file" id="modeloArq_${tipo}" accept=".doc,.docx,.pdf,.xls,.xlsx" style="display:none" onchange="importarModelo(event,'${tipo}')">`;
+  const titulo = `Modelo de ${cfg.nome}`;
   if(!m){
     return `
     <div class="card">
-      <h3>📄 Modelo de ata</h3>
-      <div class="subtitle">Tem uma ata no formato da casa? Importe o arquivo (<b>DOC, DOCX, PDF, XLS ou XLSX</b>) e a prévia passa a sair nesse formato, com os dados atuais preenchidos sozinhos. Nos pontos que mudam a cada audiência, escreva campos como <code>{{DATA_EXTENSO}}</code>, <code>{{LOCAL}}</code> ou <code>{{PRESIDENTE_FUNDO}}</code> — ou importe uma ata antiga e deixe o sistema sugerir os trechos que viram campos.</div>
+      <h3>📄 ${titulo}</h3>
+      <div class="subtitle">Tem ${cfg.o==='a'?'uma':'um'} ${cfg.nome} no formato da casa? Importe o arquivo (<b>DOC, DOCX, PDF, XLS ou XLSX</b>) e a prévia passa a sair nesse formato, com os dados atuais preenchidos sozinhos. Nos pontos que mudam a cada quadrimestre, escreva campos como <code>{{DATA_LONGA}}</code>, <code>{{QUADRIMESTRE}}</code> ou <code>{{FUNDO}}</code> — ou importe ${cfg.o==='a'?'uma':'um'} ${cfg.nome} antig${cfg.o} e deixe o sistema sugerir os trechos que viram campos.</div>
       ${pode ? `<div class="actions">
-        <button class="btn" onclick="document.getElementById('modeloAtaArq').click()">⭱ Importar modelo de ata</button>
-        <input type="file" id="modeloAtaArq" accept=".doc,.docx,.pdf,.xls,.xlsx" style="display:none" onchange="importarModeloAta(event)">
-        <button class="btn secondary" onclick="baixarModeloExemplo()" title="Um modelo pronto, já com os campos, para abrir no Word e ajustar">⭳ Baixar exemplo de modelo (Word)</button>
-        <button class="btn ghost" onclick="mostrarCamposAta=!mostrarCamposAta;render()">🧩 ${mostrarCamposAta?'Esconder':'Ver'} campos disponíveis</button>
+        <button class="btn" onclick="document.getElementById('modeloArq_${tipo}').click()">⭱ Importar modelo de ${cfg.nome}</button>${inputArq}
+        <button class="btn secondary" onclick="baixarModeloExemplo('${tipo}')" title="Um modelo pronto, já com os campos, para abrir no Word e ajustar">⭳ Baixar exemplo de modelo (Word)</button>
       </div>` : ''}
-      ${mostrarCamposAta ? listaCampos : ''}
+      <div class="actions" style="margin-top:6px;"><button class="btn ghost small" onclick="MODELO_UI.${tipo}.campos=!MODELO_UI.${tipo}.campos;render()">🧩 ${ui.campos?'Esconder':'Ver'} campos disponíveis</button></div>
+      ${ui.campos ? listaCampos : ''}
     </div>`;
   }
-  if(!pronto) return `<div class="card"><h3>📄 Modelo de ata</h3><div class="muted"><span class="spinner" style="display:inline-block;width:14px;height:14px;vertical-align:middle;margin-right:6px;"></span>Carregando o modelo da nuvem…</div></div>`;
-  const usados = camposUsadosModelo(), desconhecidos = camposDesconhecidosModelo();
-  const trechos = mostrarTrechosAta ? trechosCandidatos() : [];
+  if(!pronto) return `<div class="card"><h3>📄 ${titulo}</h3><div class="muted"><span class="spinner" style="display:inline-block;width:14px;height:14px;vertical-align:middle;margin-right:6px;"></span>Carregando o modelo da nuvem…</div></div>`;
+  const usados = camposUsadosModelo(tipo), desconhecidos = camposDesconhecidosModelo(tipo);
+  const trechos = ui.trechos ? trechosCandidatos(tipo) : [];
   return `
     <div class="card">
       <div class="flexrow" style="margin-bottom:6px;">
-        <h3 style="margin:0;">📄 Modelo de ata: ${esc(m.nome||'')}</h3>
+        <h3 style="margin:0;">📄 ${titulo}: ${esc(m.nome||'')}</h3>
         ${pode ? `<div class="actions">
-          <button class="btn secondary small" onclick="document.getElementById('modeloAtaArq').click()">🔄 Trocar modelo</button>
-          <input type="file" id="modeloAtaArq" accept=".doc,.docx,.pdf,.xls,.xlsx" style="display:none" onchange="importarModeloAta(event)">
-          <button class="btn secondary small" onclick="baixarModeloAtaWord()" title="Baixa o modelo, já com os campos, para ajustar no Word e importar de novo">⭳ Editar no Word</button>
-          <button class="btn ghost small" onclick="removerModeloAta()">🗑 Remover</button>
+          <button class="btn secondary small" onclick="document.getElementById('modeloArq_${tipo}').click()">🔄 Trocar modelo</button>${inputArq}
+          <button class="btn secondary small" onclick="baixarModeloWord('${tipo}')" title="Baixa o modelo, já com os campos, para ajustar no Word e importar de novo">⭳ Editar no Word</button>
+          <button class="btn ghost small" onclick="removerModelo('${tipo}')">🗑 Remover</button>
         </div>` : ''}
       </div>
       <div class="muted" style="font-size:12px;">${esc(String(m.tipo||'').toUpperCase())} · importado por ${esc(m.por||'—')} em ${m.importadoEm?new Date(m.importadoEm).toLocaleString('pt-BR'):'—'} · ${usados.length} campo(s) automático(s) no modelo</div>
@@ -5186,35 +5273,508 @@ function secaoModeloAtaHTML(c, a, pode, ed){
       ${m.aviso ? `<div class="alerta-aviso" style="margin-top:8px;">${esc(m.aviso)}</div>` : ''}
       ${desconhecidos.length ? `<div class="alerta-aviso" style="margin-top:8px;">Campos que o sistema não reconhece (aparecem em vermelho na prévia): ${desconhecidos.map(x=>`<code>${esc(x)}</code>`).join(' ')}. Confira a lista de campos disponíveis.</div>` : ''}
       <div class="formgrid" style="margin-top:10px;">
-        <div class="field half"><label>Texto da ata</label><select ${ed?'':'disabled'} onchange="setAta('usarModelo', this.value==='1'); render();">
-          <option value="1" ${a.usarModelo!==false?'selected':''}>Usar o modelo importado</option>
-          <option value="0" ${a.usarModelo===false?'selected':''}>Usar o texto automático do sistema</option></select></div>
-        <div class="field half" style="display:flex;align-items:flex-end;"><label class="check" style="text-transform:none;letter-spacing:0;font-weight:500;font-size:13px;color:var(--ink);"><input type="checkbox" ${a.anexarListaModelo!==false?'checked':''} ${ed?'':'disabled'} onchange="setAta('anexarListaModelo', this.checked); render();"> Acrescentar a lista de presença no fim (quando o modelo não tem {{LISTA_PRESENCA}})</label></div>
+        <div class="field half"><label>Texto d${cfg.o} ${cfg.nome}</label><select ${ed?'':'disabled'} onchange="${cfg.set}('usarModelo', this.value==='1'); render();">
+          <option value="1" ${d.usarModelo!==false?'selected':''}>Usar o modelo importado</option>
+          <option value="0" ${d.usarModelo===false?'selected':''}>Usar o texto automático do sistema</option></select></div>
+        ${tipo==='ata' ? `<div class="field half" style="display:flex;align-items:flex-end;"><label class="check" style="text-transform:none;letter-spacing:0;font-weight:500;font-size:13px;color:var(--ink);"><input type="checkbox" ${d.anexarListaModelo!==false?'checked':''} ${ed?'':'disabled'} onchange="setAta('anexarListaModelo', this.checked); render();"> Acrescentar a lista de presença no fim (quando o modelo não tem {{LISTA_PRESENCA}})</label></div>` : ''}
       </div>
       <div class="actions" style="margin-top:6px;">
-        <button class="btn ghost small" onclick="mostrarCamposAta=!mostrarCamposAta;render()">🧩 ${mostrarCamposAta?'Esconder':'Ver'} campos disponíveis</button>
-        ${pode ? `<button class="btn ghost small" onclick="mostrarTrechosAta=!mostrarTrechosAta;render()">🔎 ${mostrarTrechosAta?'Esconder':'Encontrar'} trechos que podem virar campos</button>` : ''}
+        <button class="btn ghost small" onclick="MODELO_UI.${tipo}.campos=!MODELO_UI.${tipo}.campos;render()">🧩 ${ui.campos?'Esconder':'Ver'} campos disponíveis</button>
+        ${pode ? `<button class="btn ghost small" onclick="MODELO_UI.${tipo}.trechos=!MODELO_UI.${tipo}.trechos;render()">🔎 ${ui.trechos?'Esconder':'Encontrar'} trechos que podem virar campos</button>` : ''}
       </div>
-      ${mostrarCamposAta ? listaCampos : ''}
-      ${mostrarTrechosAta && pode ? `
-      <div id="trechosAta" class="juncao" style="margin-top:10px;">
-        <h3 style="margin:0 0 4px;">🔎 Trechos do modelo que mudam a cada audiência</h3>
-        <div class="subtitle">Escolha o campo que deve entrar no lugar de cada trecho e clique em <b>Converter</b>. O modelo é salvo já com os campos e, daí em diante, se atualiza sozinho. Os marcados com sugestão são os mais seguros; confira os demais (ex.: uma data pode ser a do período e não a da audiência).</div>
+      ${ui.campos ? listaCampos : ''}
+      ${ui.trechos && pode ? `
+      <div id="trechos_${tipo}" class="juncao" style="margin-top:10px;">
+        <h3 style="margin:0 0 4px;">🔎 Trechos do modelo que mudam a cada quadrimestre</h3>
+        <div class="subtitle">Escolha o campo que deve entrar no lugar de cada trecho e clique em <b>Converter</b>. O modelo é salvo já com os campos e, daí em diante, se atualiza sozinho. Os que já vêm com o campo escolhido são os mais seguros; confira os demais (ex.: uma data pode ser a do período e não a do documento).</div>
         ${trechos.length ? trechos.map(t=>`
           <div class="juncao-item" data-trecho="${esc(t.texto)}">
             <div style="flex:1;min-width:220px;"><b>“${esc(t.texto.length>120?t.texto.slice(0,119)+'…':t.texto)}”</b>${t.n>1?` <span class="muted">(${t.n} vezes)</span>`:''}</div>
             <select style="max-width:360px;padding:5px 6px;border:1px solid var(--line);border-radius:6px;">${opcoesCampos(t.marcar?t.campo:'')}</select>
-            ${!t.marcar ? `<span class="muted" style="font-size:11px;">sugestão: {{${t.campo}}}</span>` : ''}
+            ${!t.marcar && t.campo ? `<span class="muted" style="font-size:11px;">sugestão: {{${t.campo}}}</span>` : ''}
           </div>`).join('') : '<div class="muted" style="font-size:12.5px;">Não encontrei datas, horários, quadrimestres, anos ou valores no modelo.</div>'}
-        ${trechos.length ? `<div class="actions" style="margin-top:10px;"><button class="btn" onclick="aplicarTrechos()">🧩 Converter os trechos escolhidos</button></div>` : ''}
+        ${trechos.length ? `<div class="actions" style="margin-top:10px;"><button class="btn" onclick="aplicarTrechos('${tipo}')">🧩 Converter os trechos escolhidos</button></div>` : ''}
         <div class="section-title" style="font-size:13px;">✍️ Converter outro trecho (nomes, locais…)</div>
         <div class="formgrid">
-          <div class="field half"><label>Trecho do modelo (copie exatamente como está)</label><input id="trechoManual" placeholder="Ex.: Maria da Silva"></div>
-          <div class="field half"><label>Vira o campo</label><select id="campoManual">${opcoesCampos('')}</select></div>
+          <div class="field half"><label>Trecho do modelo (copie exatamente como está)</label><input id="trechoManual_${tipo}" placeholder="Ex.: Maria da Silva"></div>
+          <div class="field half"><label>Vira o campo</label><select id="campoManual_${tipo}">${opcoesCampos('')}</select></div>
         </div>
-        <div class="actions" style="margin-top:8px;"><button class="btn secondary" onclick="converterTrechoManual()">Converter este trecho</button></div>
+        <div class="actions" style="margin-top:8px;"><button class="btn secondary" onclick="converterTrechoManual('${tipo}')">Converter este trecho</button></div>
       </div>` : ''}
     </div>`;
+}
+
+/* ============================================================
+   PARECER E RESOLUÇÃO DO CONSELHO MUNICIPAL DE SAÚDE
+   Depois da audiência, o Conselho analisa o Relatório Detalhado do
+   Quadrimestre Anterior (RDQA): a comissão emite o PARECER (favorável,
+   favorável com ressalvas ou desfavorável) e o Plenário aprova a RESOLUÇÃO,
+   homologada pelo chefe do Executivo (Lei 8.142/1990, art. 1º, § 2º).
+   Mesmo padrão da Ata: dados por competência, texto formal montado sozinho
+   com os dados do sistema, impressão, Word, finalizar e modelo importado.
+   Os dados estáveis (conselho, comissão, membros, presidente, quem homologa)
+   vêm do documento mais recente, para não precisar digitar de novo.
+   ============================================================ */
+const CONCLUSOES_PARECER = ['Favorável','Favorável com ressalvas','Desfavorável'];
+const DECISOES_RESOLUCAO = ['Aprovar','Aprovar com ressalvas','Reprovar'];
+const TIPOS_REUNIAO = ['Ordinária','Extraordinária'];
+const DOCUMENTOS_PADRAO_PARECER = [
+  'Relatório Detalhado do Quadrimestre Anterior (RDQA)',
+  'Apresentação realizada na audiência pública',
+  'Demonstrativo da aplicação em ações e serviços públicos de saúde (SIOPS / RREO)',
+  'Ata da audiência pública',
+];
+let editingMembroId = null;
+
+function qExtenso(c){ return `${c.quadrimestre}º quadrimestre de ${c.ano}`; }
+function conselhoPadrao(){ const m = municipioNome(); return 'Conselho Municipal de Saúde' + (m ? ' de '+m : ''); }
+function dataAudienciaDe(c){ const a = STATE.atas[c.id]; return (a && a.data) || c.dataAudiencia || ''; }
+function localAudienciaDe(c){ const a = STATE.atas[c.id]; return (a && a.local) || c.localAudiencia || ''; }
+function docMaisRecente(colecao, exceto){
+  const lista = Object.keys(colecao||{}).filter(id=>id!==exceto).map(id=>colecao[id]).filter(Boolean);
+  lista.sort((a,b)=>String(b.atualizadoEm||b.data||'').localeCompare(String(a.atualizadoEm||a.data||'')));
+  return lista[0] || null;
+}
+function proximoNumeroDoc(colecao){
+  const ano = new Date().getFullYear(); let max = 0;
+  Object.values(colecao||{}).forEach(d=>{ const m = String(d && d.numero || '').match(/^(\d+)\s*\/\s*(\d{4})$/); if(m && Number(m[2])===ano) max = Math.max(max, Number(m[1])); });
+  return max ? String(max+1).padStart(2,'0')+'/'+ano : '';
+}
+function localEData(iso){
+  const m = municipioNome();
+  return `${m ? esc(m)+', ' : ''}${iso ? dataLongaBR(iso) : '<span class="ata-vazio">[data]</span>'}.`;
+}
+function ordinalArtigo(n){ return n<10 ? n+'º' : n+'.'; }
+function vazioDoc(t){ return `<span class="ata-vazio">[${t}]</span>`; }
+
+/* ---------------- Dados ---------------- */
+function novoParecer(c){
+  const ant = docMaisRecente(STATE.pareceres, c.id) || {}, antR = docMaisRecente(STATE.resolucoes, c.id) || {};
+  return { numero: proximoNumeroDoc(STATE.pareceres), data:'', conselho: ant.conselho || antR.conselho || conselhoPadrao(),
+           comissao: ant.comissao || 'Comissão de Orçamento e Finanças', relator: ant.relator || '', cargoRelator: ant.cargoRelator || 'Conselheiro(a) relator(a)',
+           membros: (ant.membros||[]).map(m=>Object.assign({}, m)), dataReuniao:'', documentos: DOCUMENTOS_PADRAO_PARECER.slice(),
+           analiseFinanceira:'', analiseAuditorias:'', analiseServicos:'', analiseIndicadores:'',
+           conclusao:'Favorável', ressalvas:[], consideracoes:'', finalizado:false };
+}
+function novaResolucao(c){
+  const ant = docMaisRecente(STATE.resolucoes, c.id) || {}, antP = docMaisRecente(STATE.pareceres, c.id) || {};
+  return { numero: proximoNumeroDoc(STATE.resolucoes), data:'', conselho: ant.conselho || antP.conselho || conselhoPadrao(),
+           ementa:'', tipoReuniao:'Ordinária', numeroReuniao:'', dataReuniao:'', decisao:'', usarConsiderandosPadrao:true, considerandos:[], artigos:[],
+           presidente: ant.presidente || '', cargoPresidente: ant.cargoPresidente || 'Presidente do Conselho Municipal de Saúde',
+           homologar: ant.homologar!==false, homologador: ant.homologador || '', cargoHomologador: ant.cargoHomologador || 'Prefeito(a) Municipal', dataHomologacao:'', finalizada:false };
+}
+function parecerDe(compId, criar){
+  if(!STATE.pareceres[compId] && criar) STATE.pareceres[compId] = novoParecer(getComp(compId));
+  return STATE.pareceres[compId] || null;
+}
+function resolucaoDe(compId, criar){
+  if(!STATE.resolucoes[compId] && criar) STATE.resolucoes[compId] = novaResolucao(getComp(compId));
+  return STATE.resolucoes[compId] || null;
+}
+function docConselho(tipo, criar){ const c = compSel(); return tipo==='parecer' ? parecerDe(c.id, criar) : resolucaoDe(c.id, criar); }
+function tocarDoc(d){ d.atualizadoEm = new Date().toISOString(); d.atualizadoPor = currentUser ? currentUser.usuario : ''; }
+function setDocConselho(tipo, campo, valor){
+  if(semPermissao(tipo)){ render(); return; }
+  const c = compSel(); const d = docConselho(tipo, true);
+  d[campo] = typeof valor==='string' ? valor.trim() : valor;
+  tocarDoc(d); saveState(false);
+  const pv = document.getElementById(DOCS_MODELO[tipo].printId); if(pv) pv.innerHTML = docPreviewHTML(tipo, c, d, false);
+}
+function setParecer(campo, valor){ setDocConselho('parecer', campo, valor); }
+function setResolucao(campo, valor){ setDocConselho('resolucao', campo, valor); }
+/* listas de textos (documentos analisados, ressalvas, considerandos, artigos) */
+function adicionarTextoDoc(tipo, campo){
+  if(semPermissao(tipo)) return;
+  const el = document.getElementById(`lt_${tipo}_${campo}`); const v = (el?.value || '').trim();
+  if(!v){ showToast('Escreva o texto antes de adicionar.','warning'); return; }
+  const d = docConselho(tipo, true);
+  d[campo] = (Array.isArray(d[campo]) ? d[campo] : []).concat(v);
+  tocarDoc(d); saveState(true); render();
+  setTimeout(()=>document.getElementById(`lt_${tipo}_${campo}`)?.focus(), 30);
+}
+function removerTextoDoc(tipo, campo, i){
+  if(semPermissao(tipo)) return;
+  const d = docConselho(tipo, true); d[campo].splice(i, 1);
+  tocarDoc(d); saveState(true); render();
+}
+function moverTextoDoc(tipo, campo, i, dir){
+  if(semPermissao(tipo)) return;
+  const d = docConselho(tipo, true); const j = i + dir; if(j<0 || j>=d[campo].length) return;
+  const t = d[campo][i]; d[campo][i] = d[campo][j]; d[campo][j] = t;
+  tocarDoc(d); saveState(true); render();
+}
+function listaTextosHTML(tipo, campo, itens, ed, ph){
+  itens = Array.isArray(itens) ? itens : [];
+  return `${itens.length ? `<div class="mini-list">${itens.map((t,i)=>`<div class="mini-item" style="cursor:default;align-items:flex-start;">
+      <b style="color:var(--brand-dark);">${i+1}.</b><div style="flex:1;min-width:0;font-size:12.5px;">${esc(t)}</div>
+      ${ed ? `${i>0?`<button class="btn ghost small" title="Subir" onclick="moverTextoDoc('${tipo}','${campo}',${i},-1)">↑</button>`:''}<button class="btn ghost small" onclick="removerTextoDoc('${tipo}','${campo}',${i})">🗑</button>` : ''}
+    </div>`).join('')}</div>` : '<div class="muted" style="font-size:12.5px;">Nenhum item.</div>'}
+    ${ed ? `<div style="display:flex;gap:8px;margin-top:8px;align-items:flex-start;"><input id="lt_${tipo}_${campo}" class="fig-in" style="flex:1;margin-top:0;" placeholder="${esc(ph)}" onkeydown="if(event.key==='Enter') adicionarTextoDoc('${tipo}','${campo}')"><button class="btn small" onclick="adicionarTextoDoc('${tipo}','${campo}')">+ Adicionar</button></div>` : ''}`;
+}
+function adicionarMembro(){
+  if(semPermissao('parecer')) return;
+  const nome = (document.getElementById('mbNome')?.value || '').trim();
+  if(!nome){ showToast('Informe o nome do membro.','warning'); return; }
+  const p = docConselho('parecer', true);
+  p.membros = (p.membros||[]).concat({ id: uid(), nome, cargo: (document.getElementById('mbCargo')?.value || '').trim() });
+  tocarDoc(p); saveState(true); render();
+  setTimeout(()=>document.getElementById('mbNome')?.focus(), 30);
+}
+function removerMembro(id){
+  if(semPermissao('parecer')) return;
+  const p = docConselho('parecer', true); p.membros = (p.membros||[]).filter(m=>m.id!==id);
+  tocarDoc(p); saveState(true); render();
+}
+function usarTextoAuto(tipo, campo, texto){
+  if(!texto){ showToast('O sistema ainda não tem dados para montar este texto.','warning'); return; }
+  setDocConselho(tipo, campo, texto); render();
+}
+function finalizarDocConselho(tipo, v){
+  if(semPermissao(tipo)) return;
+  const c = compSel(); const d = docConselho(tipo, true);
+  const nome = tipo==='parecer' ? 'Parecer' : 'Resolução';
+  if(v && !d.data){ showToast(`Informe a data d${tipo==='parecer'?'o parecer':'a resolução'} antes de finalizar.`,'warning'); return; }
+  if(tipo==='parecer') d.finalizado = !!v; else d.finalizada = !!v;
+  tocarDoc(d);
+  registrarAcao(`${nome} ${v?'finalizad'+(tipo==='parecer'?'o':'a'):'reabert'+(tipo==='parecer'?'o':'a')}: ${c.rotulo}`);
+  saveState(true); render();
+  showToast(v ? `${nome} finalizad${tipo==='parecer'?'o':'a'}.` : `${nome} reabert${tipo==='parecer'?'o':'a'} para edição.`, 'success');
+}
+function baixarDocConselhoWord(tipo){
+  const c = compSel(); const d = DOCS_MODELO[tipo].dados(c);
+  const nome = tipo==='parecer' ? 'Parecer' : 'Resolucao';
+  baixarArquivo(BOM+htmlWord(`${nome} ${c.rotulo}`, docPreviewHTML(tipo, c, d, true)), `${nome}_${nomeArquivoSeguro(c.rotulo)}.doc`, 'application/msword');
+  registrarComando(`⭳ ${tipo==='parecer'?'Parecer':'Resolução'} exportad${tipo==='parecer'?'o':'a'} para Word`);
+}
+
+/* ---------------- Textos automáticos da análise ---------------- */
+function analiseAutoFinanceira(c){
+  const f = finDe(c.id), p = percentualAplicado(f), min = minimoLegal(f);
+  if(p===null) return '';
+  return `No período, o Município aplicou ${fmtPct(p,2)} da receita de impostos e transferências constitucionais em ações e serviços públicos de saúde (ASPS)${f && numOk(f.despesaAsps) ? `, o que corresponde a ${fmtMoney(f.despesaAsps)}` : ''}, ${p>=min ? `cumprindo o mínimo de ${fmtPct(min,0)}` : `abaixo do mínimo de ${fmtPct(min,0)}`} exigido pela Lei Complementar nº 141/2012.`;
+}
+function analiseAutoAuditorias(c){
+  const au = auditoriasDe(c.id);
+  if(au.length) return `Foram informadas ${au.length} auditoria(s)/fiscalização(ões) realizadas ou em andamento no período: ` + au.map(x=>`${x.orgao}${x.tipo?' ('+x.tipo+')':''} — ${x.objeto} (${String(x.situacao||'').toLowerCase()})`).join('; ') + '.';
+  return STATE.semAuditoria[c.id] ? 'Informou-se que não houve auditorias realizadas ou em andamento no período.' : '';
+}
+function analiseAutoServicos(c){
+  const areas = areasAtivas().filter(a=>basesDe(a.id, c.id).length || (STATE.figuras||[]).some(f=>f.areaId===a.id && f.competenciaId===c.id));
+  if(!areas.length) return '';
+  return `Foram apresentados os dados de oferta e produção de serviços públicos na rede assistencial das seguintes áreas: ${areas.map(a=>a.nome).join(', ')}.`;
+}
+function analiseAutoIndicadores(c){
+  const r = resumoIndicadores(c.id);
+  if(!r.lancados) return '';
+  return `Dos ${r.lancados} indicadores de saúde apresentados, ${r.ok} atingiram a meta${r.nao ? ` e ${r.nao} ficaram abaixo dela` : ''}${r.semmeta ? `; ${r.semmeta} não têm meta definida` : ''}.`;
+}
+const ANALISES_PARECER = [
+  ['analiseFinanceira', 'Montante e fonte dos recursos aplicados', analiseAutoFinanceira],
+  ['analiseAuditorias', 'Auditorias realizadas ou em andamento', analiseAutoAuditorias],
+  ['analiseServicos', 'Oferta e produção de serviços públicos na rede assistencial', analiseAutoServicos],
+  ['analiseIndicadores', 'Indicadores de saúde', analiseAutoIndicadores],
+];
+function textoAnalise(c, p, campo){ const def = ANALISES_PARECER.find(x=>x[0]===campo); return p[campo] || (def ? def[2](c) : ''); }
+function conclusaoParecerTexto(c, p){
+  const conc = p.conclusao || 'Favorável';
+  const verbo = conc==='Desfavorável' ? 'DESFAVORAVELMENTE' : conc==='Favorável com ressalvas' ? 'FAVORAVELMENTE, COM RESSALVAS,' : 'FAVORAVELMENTE';
+  const rec = conc==='Desfavorável' ? 'recomendando ao Plenário a sua não aprovação' : conc==='Favorável com ressalvas' ? 'recomendando ao Plenário a sua aprovação com as ressalvas e recomendações abaixo' : 'recomendando ao Plenário a sua aprovação';
+  return `Diante do exposto, ${p.comissao ? 'a '+p.comissao : 'o(a) relator(a)'} manifesta-se ${verbo} ao Relatório Detalhado do Quadrimestre Anterior do ${qExtenso(c)}, ${rec}.`;
+}
+function assinaturasParecer(p){
+  return [{ nome: p.relator, cargo: p.cargoRelator || 'Relator(a)' }].concat((p.membros||[]).map(m=>({ nome: m.nome, cargo: m.cargo || 'Membro da comissão' })));
+}
+function assinaturasHTML(lista){
+  return `<div class="ata-assin${lista.length===1?' ata-assin-uma':''}">${lista.map(a=>`<div><div class="linha"></div><b>${esc(a.nome||'')}</b><br><span>${esc(a.cargo||'')}</span></div>`).join('')}</div>`;
+}
+function listaHTML(itens, tag){ return itens.length ? `<${tag||'ol'} class="ata-lista">${itens.map(t=>`<li>${esc(t)}</li>`).join('')}</${tag||'ol'}>` : ''; }
+
+/* ---------------- Resolução: decisão, ementa, considerandos, artigos ---------------- */
+function decisaoResolucao(c, r){
+  if(r.decisao) return r.decisao;
+  const p = STATE.pareceres[c.id];
+  const mapa = { 'Favorável':'Aprovar', 'Favorável com ressalvas':'Aprovar com ressalvas', 'Desfavorável':'Reprovar' };
+  return (p && mapa[p.conclusao]) || 'Aprovar';
+}
+function ementaResolucao(c, r){
+  if(r.ementa) return r.ementa;
+  const d = decisaoResolucao(c, r);
+  const acao = d==='Reprovar' ? 'a reprovação' : d==='Aprovar com ressalvas' ? 'a aprovação, com ressalvas,' : 'a aprovação';
+  return `Dispõe sobre ${acao} do Relatório Detalhado do Quadrimestre Anterior (RDQA) referente ao ${qExtenso(c)}.`;
+}
+function considerandosAuto(c){
+  const lista = [
+    'o disposto no art. 36 da Lei Complementar nº 141, de 13 de janeiro de 2012, que determina ao gestor do SUS a elaboração de relatório detalhado referente ao quadrimestre anterior e a sua apresentação em audiência pública na Casa Legislativa',
+    'o art. 41 da Lei Complementar nº 141/2012, segundo o qual os Conselhos de Saúde avaliarão a cada quadrimestre o relatório consolidado do resultado da execução orçamentária e financeira no âmbito da saúde',
+  ];
+  const da = dataAudienciaDe(c), loc = localAudienciaDe(c);
+  if(da) lista.push(`a apresentação do Relatório Detalhado do ${qExtenso(c)} em audiência pública realizada em ${fmtDateBR(da)}${loc ? ', no(a) '+loc : ''}`);
+  const p = STATE.pareceres[c.id];
+  if(p) lista.push(`o Parecer${p.numero ? ' nº '+p.numero : ''}${p.comissao ? ' da '+p.comissao : ''}, ${String(p.conclusao||'Favorável').toLowerCase()} à aprovação do relatório`);
+  return lista;
+}
+function considerandosResolucao(c, r){ return (r.usarConsiderandosPadrao!==false ? considerandosAuto(c) : []).concat(Array.isArray(r.considerandos) ? r.considerandos : []); }
+function artigosResolucao(c, r){
+  const e = STATE.entidade || {};
+  const d = decisaoResolucao(c, r);
+  const acao = d==='Reprovar' ? 'Reprovar' : d==='Aprovar com ressalvas' ? 'Aprovar, com ressalvas,' : 'Aprovar';
+  const da = dataAudienciaDe(c);
+  const art1 = `${acao} o Relatório Detalhado do Quadrimestre Anterior (RDQA) referente ao ${qExtenso(c)}, período de ${fmtDateBR(c.inicio)} a ${fmtDateBR(c.fim)}, apresentado pela ${e.secretaria || 'Secretaria Municipal de Saúde'}${da ? ' em audiência pública realizada em '+fmtDateBR(da) : ''}.`;
+  return [art1].concat(Array.isArray(r.artigos) ? r.artigos : []).concat('Esta Resolução entra em vigor na data de sua publicação.');
+}
+function artigosResolucaoHTML(c, r){ return artigosResolucao(c, r).map((t,i)=>`<p><b>Art. ${ordinalArtigo(i+1)}</b> ${esc(t)}</p>`).join(''); }
+function considerandosHTML(c, r){ return considerandosResolucao(c, r).map(t=>`<p>considerando ${esc(t)};</p>`).join(''); }
+function homologacaoHTML(r, paraWord){
+  if(r.homologar===false) return '';
+  return `<div style="margin-top:30px;">
+    <p><b>HOMOLOGO</b> a Resolução${r.numero ? ' nº '+esc(r.numero) : ''}, nos termos do § 2º do art. 1º da Lei nº 8.142, de 28 de dezembro de 1990.</p>
+    <p style="text-align:right;text-indent:0;">${localEData(r.dataHomologacao)}</p>
+    ${assinaturasHTML([{ nome: r.homologador, cargo: r.cargoHomologador || 'Prefeito(a) Municipal' }])}
+  </div>`;
+}
+function trazerRessalvasDoParecer(){
+  if(semPermissao('resolucao')) return;
+  const c = compSel(); const p = STATE.pareceres[c.id];
+  if(!p || !(p.ressalvas||[]).length){ showToast('O parecer desta competência não tem ressalvas.','warning'); return; }
+  const r = resolucaoDe(c.id, true);
+  const texto = 'Ficam estabelecidas as seguintes ressalvas e recomendações à gestão municipal de saúde: ' + p.ressalvas.map((x,i)=>`${i+1}) ${String(x).replace(/[.;]+$/,'')}`).join('; ') + '.';
+  r.artigos = (r.artigos||[]).concat(texto);
+  tocarDoc(r); saveState(true); render();
+  showToast('Ressalvas do parecer incluídas como artigo.','success');
+}
+
+/* ---------------- Documentos formais (texto automático) ---------------- */
+function parecerDocumentoHTML(c, p, paraWord){
+  const e = STATE.entidade || {};
+  const da = dataAudienciaDe(c), loc = localAudienciaDe(c);
+  const docs = Array.isArray(p.documentos) ? p.documentos : [];
+  const ress = Array.isArray(p.ressalvas) ? p.ressalvas : [];
+  return `
+    <div class="ata-doc">
+      ${paraWord ? '' : reportBrandRowHTML()}
+      <div class="ata-ent">${esc(String(p.conselho || conselhoPadrao()).toUpperCase())}${p.comissao ? '<br>'+esc(p.comissao) : ''}</div>
+      <h2 class="ata-tit">PARECER${p.numero ? ' Nº '+esc(p.numero) : ''}</h2>
+      <div class="ata-sub">${esc(c.rotulo)} — ${esc(c.textoPeriodo||'')}</div>
+      <p class="doc-cab"><b>Interessado:</b> ${esc(e.secretaria || 'Secretaria Municipal de Saúde')}${e.fundoNome ? ' / '+esc(e.fundoNome) : ''}<br>
+        <b>Assunto:</b> Análise do Relatório Detalhado do Quadrimestre Anterior (RDQA) referente ao ${esc(qExtenso(c))} — art. 36 da Lei Complementar nº 141/2012.<br>
+        <b>Relator(a):</b> ${p.relator ? esc(p.relator) : vazioDoc('relator(a)')}${p.dataReuniao ? `<br><b>Reunião da comissão:</b> ${fmtDateBR(p.dataReuniao)}` : ''}</p>
+      <h3 class="doc-secao">I — RELATÓRIO</h3>
+      <p>Trata-se da análise do Relatório Detalhado do Quadrimestre Anterior (RDQA) do ${esc(qExtenso(c))}, referente ao período de ${fmtDateBR(c.inicio)} a ${fmtDateBR(c.fim)}, apresentado ${e.secretario ? 'pelo(a) '+esc(e.secretario)+(e.cargoSecretario?', '+esc(e.cargoSecretario):'') : 'pela gestão municipal de saúde'}${da ? `, em audiência pública realizada em ${fmtDateBR(da)}${loc ? ', no(a) '+esc(loc) : ''}` : ''}, contendo o montante e a fonte dos recursos aplicados no período, as auditorias realizadas ou em andamento e a oferta e produção de serviços públicos na rede assistencial própria, contratada e conveniada, cotejados com os indicadores de saúde.</p>
+      ${docs.length ? `<p>Foram analisados os seguintes documentos:</p>${listaHTML(docs, 'ul')}` : ''}
+      <h3 class="doc-secao">II — ANÁLISE</h3>
+      ${ANALISES_PARECER.map((x,i)=>{ const t = textoAnalise(c, p, x[0]); return `<p><b>${i+1}. ${x[1]}.</b> ${t ? esc(t).replace(/\n/g,'<br>') : vazioDoc('análise não informada')}</p>`; }).join('')}
+      <h3 class="doc-secao">III — CONCLUSÃO</h3>
+      <p>${esc(conclusaoParecerTexto(c, p)).replace(/(FAVORAVELMENTE, COM RESSALVAS,|DESFAVORAVELMENTE|FAVORAVELMENTE)/, '<b>$1</b>')}</p>
+      ${ress.length ? `<p><b>Ressalvas e recomendações:</b></p>${listaHTML(ress)}` : ''}
+      ${p.consideracoes ? `<p>${esc(p.consideracoes).replace(/\n/g,'<br>')}</p>` : ''}
+      <p>É o parecer.</p>
+      <p style="text-align:right;text-indent:0;">${localEData(p.data)}</p>
+      ${assinaturasHTML(assinaturasParecer(p))}
+    </div>`;
+}
+function resolucaoDocumentoHTML(c, r, paraWord){
+  const tit = `RESOLUÇÃO${r.numero ? ' Nº '+esc(r.numero) : ''}${r.data ? ', DE '+esc(dataLongaBR(r.data).toUpperCase()) : ''}`;
+  const reuniao = `${r.numeroReuniao ? esc(r.numeroReuniao)+'ª ' : ''}Reunião ${esc(r.tipoReuniao || 'Ordinária')}${r.dataReuniao ? ', realizada em '+dataLongaBR(r.dataReuniao) : ''}`;
+  return `
+    <div class="ata-doc">
+      ${paraWord ? '' : reportBrandRowHTML()}
+      <div class="ata-ent">${esc(String(r.conselho || conselhoPadrao()).toUpperCase())}</div>
+      <h2 class="ata-tit">${tit}</h2>
+      <p class="doc-ementa" style="${paraWord ? 'margin-left:200pt;' : ''}">${esc(ementaResolucao(c, r))}</p>
+      <p>O Plenário do ${esc(r.conselho || conselhoPadrao())}, em sua ${reuniao}, no uso de suas competências regimentais e das atribuições conferidas pela Lei nº 8.080, de 19 de setembro de 1990, pela Lei nº 8.142, de 28 de dezembro de 1990, e pela Lei Complementar nº 141, de 13 de janeiro de 2012, e</p>
+      ${considerandosHTML(c, r)}
+      <p><b>RESOLVE:</b></p>
+      ${artigosResolucaoHTML(c, r)}
+      <p style="text-align:right;text-indent:0;">${localEData(r.data)}</p>
+      ${assinaturasHTML([{ nome: r.presidente, cargo: r.cargoPresidente || 'Presidente do Conselho Municipal de Saúde' }])}
+      ${homologacaoHTML(r, paraWord)}
+    </div>`;
+}
+
+/* ---------------- Campos para os modelos importados ---------------- */
+const CAMPOS_PARECER = [
+  ...camposComuns(),
+  ['NUMERO','Número do parecer (ex.: 03/2026)', (c,p)=>p.numero],
+  ...camposDataDoc('o parecer'),
+  ['CONSELHO','Nome do Conselho Municipal de Saúde', (c,p)=>p.conselho || conselhoPadrao()],
+  ['COMISSAO','Comissão que emitiu o parecer', (c,p)=>p.comissao],
+  ['RELATOR','Relator(a)', (c,p)=>p.relator],
+  ['CARGO_RELATOR','Cargo / função do(a) relator(a)', (c,p)=>p.cargoRelator],
+  ['MEMBROS','Membros da comissão (nomes, separados por vírgula)', (c,p)=>(p.membros||[]).map(m=>m.nome).join(', ')],
+  ['ASSINATURAS','Assinaturas do relator e dos membros (bloco)', (c,p)=>({ html: assinaturasHTML(assinaturasParecer(p)) })],
+  ['DATA_REUNIAO','Data da reunião da comissão', (c,p)=>p.dataReuniao?fmtDateBR(p.dataReuniao):''],
+  ['DATA_AUDIENCIA','Data da audiência pública', c=>dataAudienciaDe(c)?fmtDateBR(dataAudienciaDe(c)):''],
+  ['LOCAL_AUDIENCIA','Local da audiência pública', c=>localAudienciaDe(c)],
+  ['DOCUMENTOS_ANALISADOS','Documentos analisados (lista)', (c,p)=>({ html: listaHTML(p.documentos||[], 'ul') || '<p>—</p>' })],
+  ['ANALISE_FINANCEIRA','Análise: recursos aplicados', (c,p)=>textoAnalise(c,p,'analiseFinanceira')],
+  ['ANALISE_AUDITORIAS','Análise: auditorias', (c,p)=>textoAnalise(c,p,'analiseAuditorias')],
+  ['ANALISE_SERVICOS','Análise: oferta e produção de serviços', (c,p)=>textoAnalise(c,p,'analiseServicos')],
+  ['ANALISE_INDICADORES','Análise: indicadores de saúde', (c,p)=>textoAnalise(c,p,'analiseIndicadores')],
+  ['CONCLUSAO','Conclusão (favorável, favorável com ressalvas, desfavorável)', (c,p)=>String(p.conclusao||'Favorável').toLowerCase()],
+  ['CONCLUSAO_TEXTO','Parágrafo de conclusão (Diante do exposto…)', (c,p)=>conclusaoParecerTexto(c,p)],
+  ['RESSALVAS','Ressalvas e recomendações (lista)', (c,p)=>({ html: listaHTML(p.ressalvas||[]) || '<p>Sem ressalvas.</p>' })],
+  ['CONSIDERACOES','Considerações finais', (c,p)=>p.consideracoes],
+];
+const CAMPOS_RESOLUCAO = [
+  ...camposComuns(),
+  ['NUMERO','Número da resolução (ex.: 05/2026)', (c,r)=>r.numero],
+  ...camposDataDoc('a resolução'),
+  ['CONSELHO','Nome do Conselho Municipal de Saúde', (c,r)=>r.conselho || conselhoPadrao()],
+  ['EMENTA','Ementa (Dispõe sobre…)', (c,r)=>ementaResolucao(c,r)],
+  ['TIPO_REUNIAO','Tipo da reunião (Ordinária / Extraordinária)', (c,r)=>r.tipoReuniao],
+  ['NUMERO_REUNIAO','Número da reunião', (c,r)=>r.numeroReuniao],
+  ['DATA_REUNIAO','Data da reunião do Plenário', (c,r)=>r.dataReuniao?fmtDateBR(r.dataReuniao):''],
+  ['DATA_REUNIAO_LONGA','Data da reunião (29 de setembro de 2026)', (c,r)=>dataLongaBR(r.dataReuniao)],
+  ['DECISAO','Decisão (aprovar, aprovar com ressalvas, reprovar)', (c,r)=>decisaoResolucao(c,r).toLowerCase()],
+  ['CONSIDERANDOS','Considerandos (bloco)', (c,r)=>({ html: considerandosHTML(c,r) })],
+  ['ARTIGOS','Artigos, do 1º ao da vigência (bloco)', (c,r)=>({ html: artigosResolucaoHTML(c,r) })],
+  ['PRESIDENTE_CONSELHO','Presidente do Conselho', (c,r)=>r.presidente],
+  ['CARGO_PRESIDENTE_CONSELHO','Cargo de quem assina pelo Conselho', (c,r)=>r.cargoPresidente],
+  ['HOMOLOGADOR','Quem homologa', (c,r)=>r.homologador],
+  ['CARGO_HOMOLOGADOR','Cargo de quem homologa', (c,r)=>r.cargoHomologador],
+  ['DATA_HOMOLOGACAO','Data da homologação', (c,r)=>r.dataHomologacao?fmtDateBR(r.dataHomologacao):''],
+  ['HOMOLOGACAO','Termo de homologação com assinatura (bloco)', (c,r)=>({ html: homologacaoHTML(r, false) || '<p></p>' })],
+  ['PARECER_NUMERO','Número do parecer da comissão', c=>(STATE.pareceres[c.id]||{}).numero || ''],
+  ['PARECER_CONCLUSAO','Conclusão do parecer', c=>String((STATE.pareceres[c.id]||{}).conclusao || '').toLowerCase()],
+  ['DATA_AUDIENCIA','Data da audiência pública', c=>dataAudienciaDe(c)?fmtDateBR(dataAudienciaDe(c)):''],
+  ['LOCAL_AUDIENCIA','Local da audiência pública', c=>localAudienciaDe(c)],
+];
+
+/* ---------------- Telas ---------------- */
+function cabecalhoDocConselho(tipo, c, d, pode, bloqueado){
+  const nome = tipo==='parecer' ? 'Parecer' : 'Resolução';
+  const icone = tipo==='parecer' ? '📋' : '📜';
+  const sub = tipo==='parecer'
+    ? 'Parecer da comissão do Conselho Municipal de Saúde sobre o Relatório Detalhado do Quadrimestre Anterior. O texto formal é montado sozinho com os dados do sistema — ou no seu <b>modelo de parecer</b> — veja a prévia no fim da página.'
+    : 'Resolução do Plenário do Conselho Municipal de Saúde que aprova (ou não) o Relatório Detalhado do Quadrimestre Anterior, com a homologação. O texto é montado sozinho — ou no seu <b>modelo de resolução</b> — veja a prévia no fim da página.';
+  return `
+    <div class="card">
+      <div class="flexrow">
+        <div><h2 style="margin:0;">${icone} ${nome} do Conselho — ${esc(c.rotulo)} ${bloqueado?`<span class="badge ok">✔ finalizad${tipo==='parecer'?'o':'a'}</span>`:'<span class="badge ambar">em elaboração</span>'}</h2>
+          <div class="subtitle" style="margin:4px 0 0;">${sub}</div></div>
+        <div class="actions">
+          <button class="btn" onclick="printReportAsk('${DOCS_MODELO[tipo].printId}','${nome} — ${escJs(c.rotulo)}')">🖨️ Imprimir</button>
+          <button class="btn secondary" onclick="baixarDocConselhoWord('${tipo}')">⭳ Word</button>
+          ${pode ? (bloqueado ? `<button class="btn ghost" onclick="finalizarDocConselho('${tipo}', false)">✏️ Reabrir</button>` : `<button class="btn success" onclick="finalizarDocConselho('${tipo}', true)">✔ Finalizar</button>`) : ''}
+        </div>
+      </div>
+    </div>
+    ${!pode ? `<div class="read-only-notice">Seu perfil só permite ver e imprimir ${tipo==='parecer'?'o parecer':'a resolução'}.</div>` : bloqueado ? `<div class="alerta-ok">${tipo==='parecer'?'Este parecer está finalizado':'Esta resolução está finalizada'}. Para corrigir algo, clique em “✏️ Reabrir”.</div>` : ''}`;
+}
+function campoDocHTML(setter, d, ed){
+  return (campo, rot, tipo, cls, ph) => `<div class="field ${cls||''}"><label>${rot}</label><input ${tipo?`type="${tipo}"`:''} value="${esc(d[campo]||'')}" placeholder="${esc(ph||'')}" ${ed?'':'disabled'} onchange="${setter}('${campo}', this.value)"></div>`;
+}
+function viewParecer(){
+  const c = compSel(); const pode = podeEditar('parecer');
+  const p = parecerDe(c.id) || novoParecer(c);
+  const bloq = !!p.finalizado, ed = pode && !bloq;
+  const inp = campoDocHTML('setParecer', p, ed);
+  const membros = p.membros || [];
+  return `
+    ${cabecalhoDocConselho('parecer', c, p, pode, bloq)}
+    <div class="card">
+      <h3>🏛️ Identificação</h3>
+      <div class="formgrid">
+        ${inp('numero','Número do parecer','', '', 'Ex.: 03/2026')}${inp('data','Data do parecer','date')}${inp('dataReuniao','Reunião da comissão','date')}
+        ${inp('conselho','Conselho','', 'wide', conselhoPadrao())}
+        ${inp('comissao','Comissão','', 'wide','Ex.: Comissão de Orçamento e Finanças')}
+        ${inp('relator','Relator(a)','', 'half','Nome de quem relatou')}${inp('cargoRelator','Cargo / função','', 'half')}
+      </div>
+    </div>
+    <div class="card">
+      <h3>👥 Membros da comissão que assinam (${membros.length})</h3>
+      <div class="subtitle">O relator assina primeiro; os membros abaixo assinam em seguida. A lista é aproveitada nos próximos pareceres.</div>
+      ${ed ? `<div class="formgrid" style="margin-bottom:10px;">
+        <div class="field half"><label>Nome</label><input id="mbNome" onkeydown="if(event.key==='Enter') adicionarMembro()"></div>
+        <div class="field"><label>Cargo / segmento</label><input id="mbCargo" placeholder="Ex.: Representante dos usuários" onkeydown="if(event.key==='Enter') adicionarMembro()"></div>
+        <div class="field" style="display:flex;align-items:flex-end;"><button class="btn" onclick="adicionarMembro()">+ Adicionar</button></div>
+      </div>` : ''}
+      ${membros.length ? `<div class="mini-list">${membros.map((m,i)=>`<div class="mini-item" style="cursor:default;"><b style="color:var(--brand-dark);">${i+1}.</b><div style="flex:1;"><div class="mi-t">${esc(m.nome)}</div>${m.cargo?`<div class="mi-s">${esc(m.cargo)}</div>`:''}</div>${ed?`<button class="btn ghost small" onclick="removerMembro('${m.id}')">🗑</button>`:''}</div>`).join('')}</div>` : '<div class="muted" style="font-size:12.5px;">Nenhum membro além do relator.</div>'}
+    </div>
+    <div class="card">
+      <h3>📂 Documentos analisados</h3>
+      ${listaTextosHTML('parecer', 'documentos', p.documentos, ed, 'Ex.: Relatório Anual de Gestão 2025')}
+    </div>
+    <div class="card">
+      <h3>🔍 Análise</h3>
+      <div class="subtitle">Se deixar em branco, entra o texto que o sistema monta com os dados lançados (mostrado em cinza). Para ajustar esse texto, clique em “↺ Usar o texto do sistema” e edite.</div>
+      ${ANALISES_PARECER.map((x,i)=>{ const auto = x[2](c); return `
+        <div class="field wide" style="margin-bottom:12px;">
+          <label>${i+1}. ${x[1]}</label>
+          <textarea class="fig-in" style="min-height:70px;" ${ed?'':'disabled'} placeholder="${esc(auto || 'Sem dados no sistema para este item — escreva a análise da comissão.')}" onchange="setParecer('${x[0]}', this.value)">${esc(p[x[0]]||'')}</textarea>
+          ${ed && auto ? `<div class="actions" style="margin-top:4px;"><button class="btn ghost small" onclick="usarTextoAuto('parecer','${x[0]}', ${esc(JSON.stringify(auto))})">↺ Usar o texto do sistema</button></div>` : ''}
+        </div>`; }).join('')}
+    </div>
+    <div class="card">
+      <h3>✅ Conclusão</h3>
+      <div class="formgrid">
+        <div class="field half"><label>Parecer</label><select ${ed?'':'disabled'} onchange="setParecer('conclusao', this.value); render();">${CONCLUSOES_PARECER.map(s=>`<option ${p.conclusao===s?'selected':''}>${s}</option>`).join('')}</select></div>
+      </div>
+      <div class="section-title" style="font-size:13px;">Ressalvas e recomendações${p.conclusao==='Favorável'?' (opcional)':''}</div>
+      ${listaTextosHTML('parecer', 'ressalvas', p.ressalvas, ed, 'Ex.: Apresentar o cronograma de conclusão da UBS Centro')}
+      <div class="field wide" style="margin-top:12px;"><label>Considerações finais (opcional)</label>
+        <textarea class="fig-in" style="min-height:70px;" ${ed?'':'disabled'} onchange="setParecer('consideracoes', this.value)">${esc(p.consideracoes||'')}</textarea></div>
+    </div>
+    ${secaoModeloHTML('parecer', c, p, pode, ed)}
+    <div class="section-title">👁 Prévia do parecer${usandoModelo('parecer', p) ? ' — no formato do modelo importado' : ''}</div>
+    <div class="card" id="parecerPrint">${docPreviewHTML('parecer', c, p, false)}</div>`;
+}
+function viewResolucao(){
+  const c = compSel(); const pode = podeEditar('resolucao');
+  const r = resolucaoDe(c.id) || novaResolucao(c);
+  const bloq = !!r.finalizada, ed = pode && !bloq;
+  const inp = campoDocHTML('setResolucao', r, ed);
+  const p = STATE.pareceres[c.id];
+  const decAuto = decisaoResolucao(c, Object.assign({}, r, { decisao:'' }));
+  return `
+    ${cabecalhoDocConselho('resolucao', c, r, pode, bloq)}
+    <div class="card">
+      <h3>🏛️ Identificação</h3>
+      <div class="formgrid">
+        ${inp('numero','Número da resolução','', '', 'Ex.: 05/2026')}${inp('data','Data da resolução','date')}
+        ${inp('conselho','Conselho','', 'wide', conselhoPadrao())}
+        <div class="field"><label>Reunião</label><select ${ed?'':'disabled'} onchange="setResolucao('tipoReuniao', this.value)">${TIPOS_REUNIAO.map(t=>`<option ${r.tipoReuniao===t?'selected':''}>${t}</option>`).join('')}</select></div>
+        ${inp('numeroReuniao','Nº da reunião','number', '', 'Ex.: 125')}${inp('dataReuniao','Data da reunião','date')}
+        <div class="field wide"><label>Ementa</label><textarea class="fig-in" style="min-height:52px;margin-top:0;" ${ed?'':'disabled'} placeholder="${esc(ementaResolucao(c, Object.assign({}, r, { ementa:'' })))}" onchange="setResolucao('ementa', this.value)">${esc(r.ementa||'')}</textarea>
+          <div class="muted" style="font-size:11px;margin-top:3px;">Em branco, entra a ementa sugerida (em cinza), que acompanha a decisão.</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>⚖️ Decisão do Plenário</h3>
+      <div class="formgrid">
+        <div class="field half"><label>Decisão</label><select ${ed?'':'disabled'} onchange="setResolucao('decisao', this.value); render();">
+          <option value="" ${!r.decisao?'selected':''}>Conforme o parecer (${esc(decAuto)})</option>
+          ${DECISOES_RESOLUCAO.map(s=>`<option value="${s}" ${r.decisao===s?'selected':''}>${s}</option>`).join('')}</select></div>
+        <div class="field half" style="display:flex;align-items:flex-end;"><div class="muted" style="font-size:12.5px;">${p ? `Parecer${p.numero?' nº '+esc(p.numero):''}: <b>${esc(p.conclusao||'Favorável')}</b>${(p.ressalvas||[]).length?` · ${p.ressalvas.length} ressalva(s)`:''}` : 'O parecer desta competência ainda não foi preenchido (aba “Parecer”).'}</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>📌 Considerandos</h3>
+      <label class="check" style="margin-bottom:8px;"><input type="checkbox" ${r.usarConsiderandosPadrao!==false?'checked':''} ${ed?'':'disabled'} onchange="setResolucao('usarConsiderandosPadrao', this.checked); render();"> Incluir os considerandos padrão (LC 141/2012, audiência pública e parecer)</label>
+      ${r.usarConsiderandosPadrao!==false ? `<ol class="muted" style="font-size:12px;margin:0 0 10px;padding-left:20px;">${considerandosAuto(c).map(t=>`<li>considerando ${esc(t)};</li>`).join('')}</ol>` : ''}
+      <div class="section-title" style="font-size:13px;">Considerandos adicionais</div>
+      ${listaTextosHTML('resolucao', 'considerandos', r.considerandos, ed, 'Ex.: a análise da Comissão de Orçamento e Finanças em reunião de 25/09/2026')}
+    </div>
+    <div class="card">
+      <h3>📄 Artigos</h3>
+      <div class="subtitle">O Art. 1º (aprovação do relatório) e o último (vigência) são montados sozinhos. Acrescente aqui os artigos do meio, como ressalvas, recomendações ou prazos.</div>
+      ${ed && p && (p.ressalvas||[]).length ? `<div class="actions" style="margin-bottom:8px;"><button class="btn ghost small" onclick="trazerRessalvasDoParecer()">⤵ Trazer as ressalvas do parecer como artigo</button></div>` : ''}
+      ${listaTextosHTML('resolucao', 'artigos', r.artigos, ed, 'Ex.: A Secretaria Municipal de Saúde apresentará, em 60 dias, o cronograma de…')}
+    </div>
+    <div class="card">
+      <h3>✍️ Assinatura e homologação</h3>
+      <div class="formgrid">
+        ${inp('presidente','Presidente do Conselho','', 'half','Nome de quem assina')}${inp('cargoPresidente','Cargo','', 'half')}
+      </div>
+      <label class="check" style="margin:12px 0 8px;"><input type="checkbox" ${r.homologar!==false?'checked':''} ${ed?'':'disabled'} onchange="setResolucao('homologar', this.checked); render();"> Incluir o termo de homologação (Lei nº 8.142/1990, art. 1º, § 2º)</label>
+      ${r.homologar!==false ? `<div class="formgrid">
+        ${inp('homologador','Homologada por','', 'half','Nome do(a) Prefeito(a) ou de quem homologa')}${inp('cargoHomologador','Cargo','', 'half')}
+        ${inp('dataHomologacao','Data da homologação','date')}
+      </div>` : ''}
+    </div>
+    ${secaoModeloHTML('resolucao', c, r, pode, ed)}
+    <div class="section-title">👁 Prévia da resolução${usandoModelo('resolucao', r) ? ' — no formato do modelo importado' : ''}</div>
+    <div class="card" id="resolucaoPrint">${docPreviewHTML('resolucao', c, r, false)}</div>`;
 }
 
 /* ============================================================
@@ -6118,7 +6678,9 @@ async function exportAllData(){
     await imgCarregarTodas(true);
     const linhas = {}; STATE.bases.forEach(b=>{ linhas[b.id] = LINHAS_CACHE[b.id] || []; });
     const imagens = {}; Object.keys(STATE.imagens).forEach(id=>{ if(IMG_CACHE[id]) imagens[id] = IMG_CACHE[id]; });
-    const payload = { _tipo:'backup-audiencias-saude', _versao: appVersao(), _exportadoEm: new Date().toISOString(), dados: STATE, linhas, imagens };
+    const modelos = {};   // modelos de ata / parecer / resolução (o texto fica fora do STATE)
+    for(const tipo of Object.keys(DOCS_MODELO)){ if(modeloInfo(tipo)){ try{ modelos[tipo] = await lerModeloHTML(tipo); }catch(e){} } }
+    const payload = { _tipo:'backup-audiencias-saude', _versao: appVersao(), _exportadoEm: new Date().toISOString(), dados: STATE, linhas, imagens, modelos };
     baixarArquivo(JSON.stringify(payload), `backup_audiencias_saude_${hojeISO()}.json`, 'application/json');
     registrarComando('⭳ Backup exportado');
     showToast('Backup exportado! Guarde este arquivo em local seguro.','success');
@@ -6150,6 +6712,10 @@ function importAllData(event){
         b.blob = 'base_'+b.id;
         b.partes = await blobSalvar(b.blob, JSON.stringify({ colunas:b.colunas, linhas: lin }), 0);
         LINHAS_CACHE[b.id] = lin;
+      }
+      for(const tipo of Object.keys(DOCS_MODELO)){
+        const cfg = DOCS_MODELO[tipo], html = (payload.modelos||{})[tipo];
+        if(novo[cfg.estado] && html){ novo[cfg.estado].partes = await blobSalvar(cfg.blob, html, 0); novo[cfg.estado].blob = cfg.blob; MODELO_HTML[tipo] = html; MODELO_VERSAO[tipo] = novo[cfg.estado].atualizadoEm; }
       }
       STATE = Object.assign({}, STATE, novo);
       ANALISE_CACHE = {};
@@ -6246,7 +6812,7 @@ function getNav(){
       {id:'financeiro', label:'Aplicação em Saúde (LC 141)', icon:'⚖️'},
       {id:'auditorias', label:'Auditorias', icon:'🔎'},
     ])},
-    { group:'3. Apresentação e Ata', items:[ {id:'apresentacao', label:'Montar e Apresentar', icon:'🎞️'}, {id:'ata', label:'Ata da Audiência', icon:'🖋️'} ] },
+    { group:'3. Apresentação e Documentos', items:[ {id:'apresentacao', label:'Montar e Apresentar', icon:'🎞️'}, {id:'ata', label:'Ata da Audiência', icon:'🖋️'}, {id:'parecer', label:'Parecer', icon:'📋'}, {id:'resolucao', label:'Resolução', icon:'📜'} ] },
     { group:'4. Relatórios', items:[
       {id:'relQuadrimestre', label:'Relatório do Quadrimestre', icon:'📄'},
       {id:'relEvolucao', label:'Evolução entre Quadrimestres', icon:'📈'},
@@ -6270,6 +6836,8 @@ const PAGE_META = {
   relEvolucao:['Evolução entre Quadrimestres','Indicadores e aplicação em saúde ao longo das competências.'],
   usuarios:['Usuários','Cadastro de usuários, perfis e senhas. Apenas o administrador vê este módulo.'],
   ata:['Ata da Audiência','Presentes, perguntas da população, encaminhamentos e o texto formal da ata, pronta para imprimir ou abrir no Word.'],
+  parecer:['Parecer do Conselho','Parecer da comissão do Conselho Municipal de Saúde sobre o relatório do quadrimestre: análise, conclusão, ressalvas e assinaturas.'],
+  resolucao:['Resolução do Conselho','Resolução do Plenário do Conselho Municipal de Saúde sobre o relatório do quadrimestre, com considerandos, artigos e homologação.'],
   seguranca:['Segurança','Login seguro (Firebase Authentication): situação de cada usuário, permissões no banco e as regras do Firestore.'],
   logAcesso:['Log de Acesso','Quem usou o sistema, quando e o que fez. Apenas o administrador vê este módulo.'],
 };
@@ -6362,6 +6930,8 @@ function render(){
     else if(base==='usuarios') html = viewUsuarios();
     else if(base==='logAcesso') html = viewLogAcesso();
     else if(base==='ata') html = viewAta();
+    else if(base==='parecer') html = viewParecer();
+    else if(base==='resolucao') html = viewResolucao();
     else if(base==='seguranca') html = viewSeguranca();
   }catch(e){
     console.error(e);
