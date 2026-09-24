@@ -313,6 +313,25 @@ td.nowrap{white-space:nowrap;}
 .ata-doc .doc-secao{font-size:13.5px;margin:18px 0 8px;letter-spacing:.03em;color:#15263D;}
 .ata-doc p.doc-cab{text-indent:0;line-height:1.8;}
 .ata-doc p.doc-ementa{text-indent:0;margin:6px 0 18px 45%;font-style:italic;text-align:left;}
+.modelo-editor{border:1px dashed #9AB6DA;border-radius:8px;padding:18px 20px;background:#fff;max-height:560px;overflow:auto;cursor:text;}
+.modelo-editor ::selection{background:#BBD5F7;}
+.modelo-editor [data-campo]{font-size:0;display:inline-block;vertical-align:baseline;user-select:none;-webkit-user-select:none;cursor:pointer;text-indent:0;}
+.modelo-editor [data-campo]::after{content:attr(data-rotulo);font-size:11.5px;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-style:normal;font-weight:600;line-height:1.5;background:var(--brand-soft);border:1px solid var(--brand);color:var(--brand-dark);border-radius:10px;padding:0 7px;margin:0 1px;white-space:nowrap;}
+.modelo-editor [data-campo].pendente::after{background:var(--red-soft);border-color:var(--red);color:#8A2B23;}
+.modelo-editor [data-campo].desconhecido::after{background:var(--amber-soft);border-color:var(--amber);color:#7A4E17;}
+.modelo-editor [data-campo]:hover::after{box-shadow:0 0 0 3px rgba(30,90,168,.18);}
+::highlight(sugestao-campo){background-color:#FFE98A;}
+.marca-amarela{background:#FFE98A;padding:0 3px;border-radius:3px;}
+.passos-marcacao{margin:6px 0 8px;padding-left:20px;font-size:12.5px;line-height:1.6;}
+.pop-marcador{position:fixed;z-index:3000;width:340px;max-width:calc(100vw - 16px);background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 34px rgba(16,40,80,.22);padding:12px 14px;display:none;font-size:13px;}
+.pop-marcador.open{display:block;}
+.pop-marcador .pm-tit{font-weight:700;color:var(--brand-dark);margin-bottom:4px;}
+.pop-marcador .pm-trecho{font-family:Georgia,serif;font-size:12.5px;background:#F7FAFE;border-left:3px solid var(--brand);padding:5px 8px;border-radius:4px;margin-bottom:8px;max-height:90px;overflow:auto;}
+.pop-marcador label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);margin:6px 0 3px;}
+.pop-marcador label.check{text-transform:none;letter-spacing:0;font-weight:500;font-size:12.5px;color:var(--ink);display:flex;}
+.pop-marcador select,.pop-marcador input:not([type=checkbox]){width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:12.5px;}
+.pop-marcador .pm-acoes{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+@media (max-width:640px){ .pop-marcador{width:auto;} .modelo-editor{padding:12px;} }
 .ata-assin.ata-assin-uma{grid-template-columns:minmax(0,360px);justify-content:center;}
 @media (max-width:640px){ .ata-doc p.doc-ementa{margin-left:15%;} }
 .ata-modelo img{max-width:100%;height:auto;}
@@ -1171,7 +1190,7 @@ function trocarCodigoAcesso(){
    Criação desta versão com nuvem: setembro/2026 (mês 1).
    ============================================================ */
 const APP_CRIACAO = { mes: 9, ano: 2026 };
-const APP_ALTERACAO = 14;
+const APP_ALTERACAO = 16;
 const APP_DATA = '2026-09-24';
 function appVersao(){
   const p = APP_DATA.split('-').map(Number);
@@ -4607,6 +4626,8 @@ function finalizarAta(v){
   if(semPermissao('ata')) return;
   const c = compSel(); const a = ataDe(c.id, true);
   if(v && !a.data){ showToast('Informe a data da audiência antes de finalizar a ata.','warning'); return; }
+  const faltam = v ? pendenciasModelo('ata', c, a) : [];
+  if(faltam.length){ showToast(`Faltam ${faltam.length} campo(s) obrigatório(s) do modelo: ${faltam.map(x=>x.rotulo.split(' (')[0]).join(', ')}. Veja a lista “Campos obrigatórios do modelo”.`,'warning'); return; }
   a.finalizada = !!v;
   if(v){ c.situacao = 'realizada'; if(!c.dataAudiencia) c.dataAudiencia = a.data; if(!c.horaAudiencia) c.horaAudiencia = a.horaInicio; if(!c.localAudiencia) c.localAudiencia = a.local; }
   registrarAcao((v?'Ata finalizada: ':'Ata reaberta: ')+c.rotulo);
@@ -4731,11 +4752,11 @@ const EXT_MODELO_DOC = ['doc','docx','pdf','xls','xlsx'];
 /* Configuração de cada documento. As funções são chamadas só na hora do uso
    (as telas do parecer e da resolução ficam em outro arquivo). */
 const DOCS_MODELO = {
-  ata:       { estado:'modeloAta',       blob:'modelo_ata',       nome:'ata',       o:'a', view:'ata',       set:'setAta',       printId:'ataPrint',
+  ata:       { estado:'modeloAta',       blob:'modelo_ata',       nome:'ata',       o:'a', view:'ata',       set:'setAta',       printId:'ataPrint', marcacao:true,
                dados: c=>ataDe(c.id) || novaAta(c),             auto: (c,d,w)=>ataDocumentoHTML(c,d,w),       campos: ()=>CAMPOS_ATA },
-  parecer:   { estado:'modeloParecer',   blob:'modelo_parecer',   nome:'parecer',   o:'o', view:'parecer',   set:'setParecer',   printId:'parecerPrint',
+  parecer:   { estado:'modeloParecer',   blob:'modelo_parecer',   nome:'parecer',   o:'o', view:'parecer',   set:'setParecer',   printId:'parecerPrint', marcacao:true,
                dados: c=>parecerDe(c.id) || novoParecer(c),     auto: (c,d,w)=>parecerDocumentoHTML(c,d,w),   campos: ()=>CAMPOS_PARECER },
-  resolucao: { estado:'modeloResolucao', blob:'modelo_resolucao', nome:'resolução', o:'a', view:'resolucao', set:'setResolucao', printId:'resolucaoPrint',
+  resolucao: { estado:'modeloResolucao', blob:'modelo_resolucao', nome:'resolução', o:'a', view:'resolucao', set:'setResolucao', printId:'resolucaoPrint', marcacao:true,
                dados: c=>resolucaoDe(c.id) || novaResolucao(c), auto: (c,d,w)=>resolucaoDocumentoHTML(c,d,w), campos: ()=>CAMPOS_RESOLUCAO },
 };
 const MODELO_HTML = {}, MODELO_VERSAO = {}, MODELO_CARREGANDO = {};
@@ -4858,12 +4879,17 @@ function camposDataDoc(rot){
   ];
 }
 const _MAPAS_CAMPOS = {};
-function camposDoc(tipo){ return DOCS_MODELO[tipo].campos(); }
+/* Campos do documento + os "campos novos" que o usuário criou ao marcar o modelo (valor digitado em cada competência). */
+function camposDoc(tipo){
+  const livres = (typeof camposLivres==='function') ? camposLivres(tipo) : [];
+  return DOCS_MODELO[tipo].campos().concat(livres.map(x=>[x.chave, x.rotulo, (c,d)=>valorLivre(d, x.chave)]));
+}
 function mapaCampos(tipo){
   const lista = camposDoc(tipo);
+  const chaveCache = lista.length + '|' + lista.map(x=>x[0]+':'+x[1]).filter(s=>s.startsWith('LIVRE_')).join(',');
   const m = _MAPAS_CAMPOS[tipo];
-  if(m && m._n===lista.length) return m;
-  const novo = { _n: lista.length }; lista.forEach(x=>{ novo[x[0]] = x; });
+  if(m && m._n===chaveCache) return m;
+  const novo = { _n: chaveCache }; lista.forEach(x=>{ novo[x[0]] = x; });
   return (_MAPAS_CAMPOS[tipo] = novo);
 }
 function camposTodosMapa(){ return Object.assign({}, mapaCampos('ata'), mapaCampos('parecer'), mapaCampos('resolucao')); }
@@ -4876,7 +4902,7 @@ function valorCampoDoc(tipo, chave, c, d){
 }
 function renderModelo(tipo, c, d, paraWord){
   const mapa = mapaCampos(tipo);
-  let html = MODELO_HTML[tipo] || '';
+  let html = modeloSemEtiquetas(MODELO_HTML[tipo] || '');
   // campos de bloco sozinhos num parágrafo: o parágrafo inteiro vira o bloco (tabela, lista)
   html = html.replace(/<p[^>]*>\s*\{\{\s*([^{}]+?)\s*\}\}\s*<\/p>/gi, (m, nome)=>{
     const v = valorCampoDoc(tipo, chaveCampo(nome), c, d);
@@ -5084,9 +5110,10 @@ async function importarModelo(ev, tipo){
     await gravarModelo(tipo, html, { nome: file.name, tipo: ext, aviso: r.aviso });
     const n = camposUsadosModelo(tipo).length;
     registrarAcao(`Modelo de ${cfg.nome} importado: ${file.name}`);
-    MODELO_UI[tipo].trechos = !n;
+    if(cfg.marcacao) MODELO_UI[tipo].marcar = true; else MODELO_UI[tipo].trechos = !n;
     render();
-    showToast(n ? `Modelo importado com ${n} campo(s) automático(s).` : 'Modelo importado. Ele ainda não tem campos {{...}} — veja abaixo os trechos que podem virar campos.', 'success');
+    if(cfg.marcacao) showToast('Modelo importado. Agora selecione no documento abaixo os trechos que mudam a cada quadrimestre (os em amarelo são sugestões).', 'success');
+    else showToast(n ? `Modelo importado com ${n} campo(s) automático(s).` : 'Modelo importado. Ele ainda não tem campos {{...}} — veja abaixo os trechos que podem virar campos.', 'success');
   }catch(e){ console.error(e); showToast('Não foi possível ler o modelo: '+(e.message||e),'error'); }
   finally{ importandoModelo = false; }
 }
@@ -5166,7 +5193,7 @@ const REGRAS_TRECHOS = [
   { re:/\b\d{1,2}\s*h\s*\d{2}\b|\b\d{1,2}:\d{2}\b/g, campo:'HORA_INICIO', marcar:false },
   { re:/\b\d{1,3},\d{1,2}\s?%/g, campo:'PERCENTUAL_APLICADO', marcar:false },
   { re:/R\$\s?[\d.]+,\d{2}/g, campo:'DESPESA_ASPS', marcar:false },
-  { re:/\b\d{1,3}\s*\/\s*20\d{2}\b/g, campo:'NUMERO', marcar:false },
+  { re:/\b\d{1,6}\s*\/\s*20\d{2}\b/g, campo:'NUMERO', marcar:false },
   { re:/\b20\d{2}\b/g, campo:'ANO', marcar:false },
 ];
 function trechosCandidatos(tipo){
@@ -5233,6 +5260,7 @@ async function converterTrechoManual(tipo){
 
 /* ---------------- Quadro "Modelo de ..." nas telas da Ata, do Parecer e da Resolução ---------------- */
 function secaoModeloHTML(tipo, c, d, pode, ed){
+  if(DOCS_MODELO[tipo].marcacao) return secaoModeloMarcacaoHTML(tipo, c, d, pode, ed);   // Ata, Parecer e Resolução: marcação com o mouse
   const cfg = DOCS_MODELO[tipo], ui = MODELO_UI[tipo];
   const m = modeloInfo(tipo);
   const pronto = modeloPronto(tipo);
@@ -5371,7 +5399,7 @@ function resolucaoDe(compId, criar){
   if(!STATE.resolucoes[compId] && criar) STATE.resolucoes[compId] = novaResolucao(getComp(compId));
   return STATE.resolucoes[compId] || null;
 }
-function docConselho(tipo, criar){ const c = compSel(); return tipo==='parecer' ? parecerDe(c.id, criar) : resolucaoDe(c.id, criar); }
+function docConselho(tipo, criar){ const c = compSel(); return tipo==='ata' ? ataDe(c.id, criar) : tipo==='parecer' ? parecerDe(c.id, criar) : resolucaoDe(c.id, criar); }
 function tocarDoc(d){ d.atualizadoEm = new Date().toISOString(); d.atualizadoPor = currentUser ? currentUser.usuario : ''; }
 function setDocConselho(tipo, campo, valor){
   if(semPermissao(tipo)){ render(); return; }
@@ -5434,6 +5462,8 @@ function finalizarDocConselho(tipo, v){
   const c = compSel(); const d = docConselho(tipo, true);
   const nome = tipo==='parecer' ? 'Parecer' : 'Resolução';
   if(v && !d.data){ showToast(`Informe a data d${tipo==='parecer'?'o parecer':'a resolução'} antes de finalizar.`,'warning'); return; }
+  const faltam = v ? pendenciasModelo(tipo, c, d) : [];
+  if(faltam.length){ showToast(`Faltam ${faltam.length} campo(s) obrigatório(s) do modelo: ${faltam.map(x=>x.rotulo.split(' (')[0]).join(', ')}. Veja a lista “Campos obrigatórios do modelo”.`,'warning'); return; }
   if(tipo==='parecer') d.finalizado = !!v; else d.finalizada = !!v;
   tocarDoc(d);
   registrarAcao(`${nome} ${v?'finalizad'+(tipo==='parecer'?'o':'a'):'reabert'+(tipo==='parecer'?'o':'a')}: ${c.rotulo}`);
@@ -5776,6 +5806,434 @@ function viewResolucao(){
     <div class="section-title">👁 Prévia da resolução${usandoModelo('resolucao', r) ? ' — no formato do modelo importado' : ''}</div>
     <div class="card" id="resolucaoPrint">${docPreviewHTML('resolucao', c, r, false)}</div>`;
 }
+
+/* ============================================================
+   MARCAÇÃO DE CAMPOS NO MODELO (Ata, Parecer e Resolução)
+   O modelo importado aparece como documento. O usuário seleciona com o
+   mouse o trecho que muda a cada quadrimestre (ou clica num trecho que o
+   sistema destacou em amarelo) e escolhe o que ele é: um dado do sistema
+   (data, número, relator…) ou um CAMPO NOVO, que ganha uma caixa para
+   preencher. Cada trecho marcado vira <span data-campo="CHAVE"
+   data-orig="texto original">{{CHAVE}}</span> — dá para desmarcar e
+   voltar ao texto original.
+   Todo campo marcado é OBRIGATÓRIO: a tela mostra o que falta preencher
+   e o documento só é finalizado com todos preenchidos.
+   ============================================================ */
+let MARCACAO_PEND = null;           // seleção esperando a escolha do campo
+const SUGESTOES_EDITOR = {};        // tipo -> [{range, campo}] (trechos destacados em amarelo)
+
+function textNodesDe(root){
+  const w = root.ownerDocument.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const a = []; let n; while((n = w.nextNode())) a.push(n); return a;
+}
+function dentroDeCampo(node){ const el = node.nodeType===3 ? node.parentElement : node; return !!(el && el.closest && el.closest('[data-campo]')); }
+function parseModelo(html){
+  const doc = new DOMParser().parseFromString('<div id="raiz">'+String(html||'')+'</div>', 'text/html');
+  return { doc, raiz: doc.getElementById('raiz') };
+}
+/* Envolve os {{CAMPO}} digitados direto no Word num <span data-campo>, para virarem etiquetas clicáveis. */
+function normalizarCamposModelo(html){
+  const { doc, raiz } = parseModelo(html);
+  let mudou = false;
+  textNodesDe(raiz).forEach(t=>{
+    if(dentroDeCampo(t) || !/\{\{[^{}]+\}\}/.test(t.nodeValue)) return;
+    const frag = doc.createDocumentFragment(); let ultimo = 0; const s = t.nodeValue;
+    s.replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (m, nome, pos)=>{
+      if(pos>ultimo) frag.appendChild(doc.createTextNode(s.slice(ultimo, pos)));
+      const sp = doc.createElement('span'); sp.setAttribute('data-campo', chaveCampo(nome)); sp.textContent = '{{'+chaveCampo(nome)+'}}';
+      frag.appendChild(sp); ultimo = pos + m.length; return m;
+    });
+    if(ultimo < s.length) frag.appendChild(doc.createTextNode(s.slice(ultimo)));
+    t.parentNode.replaceChild(frag, t); mudou = true;
+  });
+  return mudou ? raiz.innerHTML : String(html||'');
+}
+/* Para a prévia/Word: cada etiqueta volta a ser só o texto {{CAMPO}} (sem os atributos internos). */
+function modeloSemEtiquetas(html){
+  if(!/data-campo/.test(html||'')) return html || '';
+  const { doc, raiz } = parseModelo(html);
+  raiz.querySelectorAll('[data-campo]').forEach(el=>el.replaceWith(doc.createTextNode('{{'+el.getAttribute('data-campo')+'}}')));
+  return raiz.innerHTML;
+}
+
+/* ---------------- Campos livres (criados pelo usuário) ---------------- */
+function camposLivres(tipo){ const m = modeloInfo(tipo); return (m && Array.isArray(m.livres)) ? m.livres : []; }
+function valorLivre(d, chave){ return ((d && d.camposLivres) || {})[chave] || ''; }
+function setCampoLivre(tipo, chave, valor){
+  if(semPermissao(tipo)){ render(); return; }
+  const d = docConselho(tipo, true);
+  d.camposLivres = Object.assign({}, d.camposLivres||{}, { [chave]: String(valor||'').trim() });
+  tocarDoc(d); saveState(false); render();
+}
+/* Valor que o campo teve no documento mais recente de outra competência (sugestão para repetir). */
+function valorLivreAnterior(tipo, chave){
+  const c = compSel(); const col = tipo==='ata' ? STATE.atas : tipo==='parecer' ? STATE.pareceres : STATE.resolucoes;
+  const ant = Object.keys(col||{}).filter(id=>id!==c.id).map(id=>col[id]).filter(d=>d && d.camposLivres && d.camposLivres[chave])
+    .sort((a,b)=>String(b.atualizadoEm||'').localeCompare(String(a.atualizadoEm||'')))[0];
+  return ant ? ant.camposLivres[chave] : '';
+}
+function novoCampoLivre(tipo, rotulo, exemplo){
+  const m = modeloInfo(tipo);
+  const livres = camposLivres(tipo).slice();
+  let n = livres.length + 1; while(livres.some(x=>x.chave==='LIVRE_'+n)) n++;
+  const campo = { chave:'LIVRE_'+n, rotulo: rotulo.trim(), exemplo: exemplo || '' };
+  livres.push(campo); m.livres = livres;
+  return campo.chave;
+}
+
+/* ---------------- Obrigatórios ---------------- */
+const ONDE_PREENCHER = [
+  [['ENTIDADE','MUNICIPIO','SECRETARIA','GESTOR','CARGO_GESTOR','FUNDO','PRESIDENTE_FUNDO','CNPJ'], 'Cadastro da Entidade', 'entidade'],
+  [['PERCENTUAL_APLICADO','MINIMO_LEGAL','SITUACAO_LC141','DESPESA_ASPS','RECEITA_BASE'], 'Aplicação em Saúde (LC 141)', 'financeiro'],
+  [['INDICADORES_LANCADOS','INDICADORES_ATINGIDOS','INDICADORES_ABAIXO'], 'Indicadores e Metas', 'indicadoresLanc'],
+  [['NUM_AUDITORIAS','AUDITORIAS'], 'Auditorias', 'auditorias'],
+  [['DATA_AUDIENCIA','LOCAL_AUDIENCIA','RETORNO_ENCAMINHAMENTOS'], 'Ata da Audiência', 'ata'],
+  [['COMPETENCIA','QUADRIMESTRE','QUADRIMESTRE_EXTENSO','ANO','MESES','PERIODO','PERIODO_INICIO','PERIODO_FIM','PRAZO_LEGAL'], 'Competências', 'competencias'],
+  [['PARECER_NUMERO','PARECER_CONCLUSAO'], 'aba Parecer', 'parecer'],
+];
+function ondePreencher(chave){ const x = ONDE_PREENCHER.find(g=>g[0].includes(chave)); return x ? { nome:x[1], view:x[2] } : null; }
+function camposObrigatorios(tipo, c, d){
+  const mapa = mapaCampos(tipo);
+  return camposUsadosModelo(tipo).map(k=>{
+    const v = valorCampoDoc(tipo, k, c, d);
+    const vazio = v===null || v===undefined || (typeof v==='object' ? !String(v.html||'').replace(/<[^>]*>/g,'').trim() : !String(v).trim());
+    return { chave:k, rotulo: mapa[k][1], valor: v, vazio, livre: k.startsWith('LIVRE_') };
+  });
+}
+function pendenciasModelo(tipo, c, d){ return usandoModelo(tipo, d) ? camposObrigatorios(tipo, c, d).filter(x=>x.vazio) : []; }
+
+/* ---------------- Tela do editor ---------------- */
+function rotuloCurto(def){ return def ? String(def[1]).split(' (')[0] : ''; }
+function editorModeloHTML(tipo, c, d){
+  const base = normalizarCamposModelo(MODELO_HTML[tipo]);
+  const mapa = mapaCampos(tipo);
+  const pend = new Set(camposObrigatorios(tipo, c, d).filter(x=>x.vazio).map(x=>x.chave));
+  const { raiz } = parseModelo(base);
+  raiz.querySelectorAll('[data-campo]').forEach(el=>{
+    const k = el.getAttribute('data-campo'), def = mapa[k];
+    el.setAttribute('data-rotulo', def ? '🏷 '+rotuloCurto(def) : '⚠ campo desconhecido: '+k);
+    el.setAttribute('title', (def ? def[1] : 'Campo que o sistema não conhece') + (el.getAttribute('data-orig') ? ' — texto original: “'+el.getAttribute('data-orig')+'”' : '') + ' — clique para trocar ou desmarcar');
+    if(!def) el.classList.add('desconhecido'); else if(pend.has(k)) el.classList.add('pendente');
+  });
+  // sem espaço entre a tag e o conteúdo: a posição dos textos precisa ser igual à do modelo
+  return `<div id="editorModelo_${tipo}" class="modelo-editor ata-doc ata-modelo" data-base-len="${base.length}">${raiz.innerHTML}</div>`;
+}
+function secaoModeloMarcacaoHTML(tipo, c, d, pode, ed){
+  const cfg = DOCS_MODELO[tipo], ui = MODELO_UI[tipo];
+  const m = modeloInfo(tipo);
+  const inputArq = `<input type="file" id="modeloArq_${tipo}" accept=".doc,.docx,.pdf,.xls,.xlsx" style="display:none" onchange="importarModelo(event,'${tipo}')">`;
+  if(!m){
+    return `
+    <div class="card">
+      <h3>📄 Modelo de ${cfg.nome}</h3>
+      <div class="subtitle">Tem ${cfg.o==='a'?'uma':'um'} ${cfg.nome} no formato da casa? Importe o arquivo (<b>DOC, DOCX, PDF, XLS ou XLSX</b>). Depois é só <b>selecionar com o mouse</b> os trechos que mudam a cada quadrimestre (datas, números, nomes…) e dizer o que cada um é. O sistema passa a preencher esses campos sozinho e avisa quando algum estiver faltando.</div>
+      ${pode ? `<div class="actions"><button class="btn" onclick="document.getElementById('modeloArq_${tipo}').click()">⭱ Importar modelo de ${cfg.nome}</button>${inputArq}</div>` : ''}
+    </div>`;
+  }
+  if(!modeloPronto(tipo)) return `<div class="card"><h3>📄 Modelo de ${cfg.nome}</h3><div class="muted"><span class="spinner" style="display:inline-block;width:14px;height:14px;vertical-align:middle;margin-right:6px;"></span>Carregando o modelo da nuvem…</div></div>`;
+  const obrig = camposObrigatorios(tipo, c, d);
+  const pend = obrig.filter(x=>x.vazio);
+  const desconhecidos = camposDesconhecidosModelo(tipo);
+  const usar = d.usarModelo!==false;
+  const abrirEditor = ui.marcar!==undefined ? ui.marcar : !obrig.length;
+  const linhaObrig = x=>{
+    const onde = ondePreencher(x.chave);
+    let valor;
+    if(x.livre){
+      const anterior = valorLivreAnterior(tipo, x.chave) || ((camposLivres(tipo).find(z=>z.chave===x.chave)||{}).exemplo || '');
+      valor = `<input class="fig-in" style="margin-top:0;" value="${esc(valorLivre(d, x.chave))}" placeholder="${esc(anterior ? 'Antes: '+anterior : 'Preencha: '+x.rotulo)}" ${ed?'':'disabled'} onchange="setCampoLivre('${tipo}','${x.chave}', this.value)">`
+        + (ed && x.vazio && anterior ? `<button class="btn ghost small" style="margin-top:4px;" onclick="setCampoLivre('${tipo}','${x.chave}', ${esc(JSON.stringify(anterior))})">↺ Repetir “${esc(anterior.length>40?anterior.slice(0,39)+'…':anterior)}”</button>` : '');
+    }
+    else if(x.valor && typeof x.valor==='object') valor = `<span class="muted">${x.vazio ? '—' : 'bloco montado pelo sistema'}</span>`;
+    else valor = x.vazio ? '<span class="muted">—</span>' : esc(String(x.valor).length>90 ? String(x.valor).slice(0,89)+'…' : x.valor);
+    const sit = x.vazio
+      ? `<span class="badge ruim">⚠ falta</span>${!x.livre ? ` <span class="muted" style="font-size:11px;">${onde ? `preencha em <a href="#" onclick="goto('${onde.view}');return false;">${esc(onde.nome)}</a>` : 'preencha nos dados acima'}</span>` : ''}`
+      : '<span class="badge ok">✔ ok</span>';
+    return `<tr><td style="white-space:normal;min-width:150px;"><b>${esc(x.rotulo.split(' (')[0])}</b>${x.livre?' <span class="muted" style="font-size:11px;">(campo novo)</span>':''}</td><td style="white-space:normal;min-width:180px;">${valor}</td><td style="white-space:normal;">${sit}</td></tr>`;
+  };
+  return `
+    <div class="card">
+      <div class="flexrow" style="margin-bottom:6px;">
+        <h3 style="margin:0;">📄 Modelo de ${cfg.nome}: ${esc(m.nome||'')}</h3>
+        ${pode ? `<div class="actions">
+          <button class="btn secondary small" onclick="document.getElementById('modeloArq_${tipo}').click()">🔄 Trocar modelo</button>${inputArq}
+          <button class="btn ghost small" onclick="removerModelo('${tipo}')">🗑 Remover</button>
+        </div>` : ''}
+      </div>
+      <div class="muted" style="font-size:12px;">${esc(String(m.tipo||'').toUpperCase())} · importado por ${esc(m.por||'—')} em ${m.importadoEm?new Date(m.importadoEm).toLocaleString('pt-BR'):'—'}</div>
+      ${m._erro ? `<div class="alerta-erro" style="margin-top:8px;">Não foi possível ler o modelo na nuvem (${esc(m._erro)}). Importe-o de novo.</div>` : ''}
+      ${m.aviso ? `<div class="alerta-aviso" style="margin-top:8px;">${esc(m.aviso)}</div>` : ''}
+      <div class="formgrid" style="margin-top:10px;">
+        <div class="field half"><label>Texto d${cfg.o} ${cfg.nome}</label><select ${ed?'':'disabled'} onchange="${cfg.set}('usarModelo', this.value==='1'); render();">
+          <option value="1" ${usar?'selected':''}>Usar o modelo importado</option>
+          <option value="0" ${!usar?'selected':''}>Usar o texto automático do sistema</option></select></div>
+        ${tipo==='ata' ? `<div class="field half" style="display:flex;align-items:flex-end;"><label class="check" style="text-transform:none;letter-spacing:0;font-weight:500;font-size:13px;color:var(--ink);"><input type="checkbox" ${d.anexarListaModelo!==false?'checked':''} ${ed?'':'disabled'} onchange="setAta('anexarListaModelo', this.checked); render();"> Acrescentar a lista de presença no fim (quando o modelo não tem o campo “Lista de presença”)</label></div>` : ''}
+      </div>
+
+      <div class="section-title" style="font-size:13.5px;">📝 Campos obrigatórios do modelo (${obrig.length}) ${obrig.length ? (pend.length ? `<span class="badge ruim">${pend.length} faltando</span>` : '<span class="badge ok">✔ todos preenchidos</span>') : ''}</div>
+      ${obrig.length ? `<div class="table-wrap"><table><thead><tr><th>Campo</th><th>Valor que vai entrar</th><th>Situação</th></tr></thead><tbody>${obrig.map(linhaObrig).join('')}</tbody></table></div>
+        ${pend.length && usar ? `<div class="muted" style="font-size:12px;margin-top:6px;">${cfg.o==='a'?'A':'O'} ${cfg.nome} só pode ser finalizad${cfg.o} com todos os campos obrigatórios preenchidos.</div>` : ''}`
+        : '<div class="muted" style="font-size:12.5px;">Nenhum campo marcado ainda. Marque abaixo os trechos que mudam a cada quadrimestre.</div>'}
+      ${desconhecidos.length ? `<div class="alerta-aviso" style="margin-top:8px;">O modelo tem campos que o sistema não reconhece: ${desconhecidos.map(x=>`<code>${esc(x)}</code>`).join(' ')}. Clique neles no documento abaixo para trocar ou desmarcar.</div>` : ''}
+
+      ${pode ? `<div class="actions" style="margin-top:12px;"><button class="btn ${abrirEditor?'ghost':''} small" onclick="MODELO_UI.${tipo}.marcar=!${abrirEditor};render()">✏️ ${abrirEditor?'Fechar a marcação de campos':'Marcar ou alterar campos no modelo'}</button></div>` : ''}
+      ${pode && abrirEditor ? `
+        <div class="juncao" style="margin-top:10px;">
+          <h3 style="margin:0 0 4px;">✏️ Marque os campos no modelo</h3>
+          <ol class="passos-marcacao">
+            <li><b>Selecione com o mouse</b> (ou dê dois cliques) no trecho que muda a cada quadrimestre — uma data, um número, um nome, um parágrafo inteiro.</li>
+            <li>Escolha <b>o que ele é</b> na janelinha que abre: um dado do sistema ou um <b>campo novo</b>, para você preencher.</li>
+            <li>Os trechos <span class="marca-amarela">em amarelo</span> são sugestões do sistema: basta clicar neles.</li>
+          </ol>
+          <div class="muted" style="font-size:12px;margin-bottom:8px;">As etiquetas azuis são os campos já marcados (vermelhas = faltando valor). Clique numa etiqueta para trocar o campo ou desmarcar — o texto original volta.</div>
+          ${editorModeloHTML(tipo, c, d)}
+        </div>` : ''}
+    </div>`;
+}
+
+/* ---------------- Interação: seleção, sugestões, janelinha ---------------- */
+function ligarEditorModelo(tipo){
+  const ed = document.getElementById('editorModelo_'+tipo); if(!ed) return;
+  const soltar = ev=>{
+    const pt = ev.changedTouches ? ev.changedTouches[0] : ev;
+    setTimeout(()=>aoSoltarNoEditor(tipo, ev.target, pt.clientX, pt.clientY), 10);
+  };
+  ed.addEventListener('mouseup', soltar);
+  ed.addEventListener('touchend', soltar);
+  destacarSugestoes(tipo, ed);
+}
+function destacarSugestoes(tipo, ed){
+  const mapa = mapaCampos(tipo);
+  const lista = [];
+  textNodesDe(ed).forEach(t=>{
+    if(dentroDeCampo(t)) return;
+    const s = t.nodeValue, cobertos = [];
+    REGRAS_TRECHOS.forEach(r=>{
+      let m; r.re.lastIndex = 0;
+      while((m = r.re.exec(s))){
+        if(!m[0].trim()) { r.re.lastIndex++; continue; }
+        const ini = m.index, fim = m.index + m[0].length;
+        if(cobertos.some(([a,b])=>ini<b && fim>a)) continue;
+        cobertos.push([ini,fim]);
+        const range = document.createRange(); range.setStart(t, ini); range.setEnd(t, fim);
+        lista.push({ range, campo: mapa[r.campo] ? r.campo : '' });
+      }
+    });
+  });
+  SUGESTOES_EDITOR[tipo] = lista;
+  try{ if(window.CSS && CSS.highlights && window.Highlight){ CSS.highlights.set('sugestao-campo', new Highlight(...lista.map(x=>x.range))); } }catch(e){}
+}
+function pontoDoClique(x, y){
+  if(document.caretRangeFromPoint){ const r = document.caretRangeFromPoint(x, y); return r ? { node:r.startContainer, off:r.startOffset } : null; }
+  if(document.caretPositionFromPoint){ const p = document.caretPositionFromPoint(x, y); return p ? { node:p.offsetNode, off:p.offset } : null; }
+  return null;
+}
+function aoSoltarNoEditor(tipo, alvo, x, y){
+  const ed = document.getElementById('editorModelo_'+tipo); if(!ed) return;
+  const sel = window.getSelection();
+  const chip = alvo && alvo.closest ? alvo.closest('[data-campo]') : null;
+  if(sel.isCollapsed || !sel.rangeCount){
+    if(chip && ed.contains(chip)){ abrirPopEtiqueta(tipo, chip); return; }
+    const p = pontoDoClique(x, y);
+    const s = p && (SUGESTOES_EDITOR[tipo]||[]).find(z=>{ try{ return z.range.isPointInRange(p.node, p.off); }catch(e){ return false; } });
+    if(s){ sel.removeAllRanges(); sel.addRange(s.range.cloneRange()); abrirPopSelecao(tipo, s.campo); }
+    return;
+  }
+  const r = sel.getRangeAt(0);
+  if(!ed.contains(r.startContainer) || !ed.contains(r.endContainer)) return;
+  abrirPopSelecao(tipo, null);
+}
+/* Converte um ponto da seleção (nó + posição) em "nº do trecho de texto + posição", igual no editor e no modelo. */
+function pontoParaTexto(root, node, offset, inicio){
+  const nodes = textNodesDe(root);
+  if(node.nodeType===3){ const i = nodes.indexOf(node); return i<0 ? null : { i, off: offset }; }
+  const r = root.ownerDocument.createRange(); r.setStart(node, offset); r.collapse(true);
+  if(inicio){ for(let i=0;i<nodes.length;i++){ if(r.comparePoint(nodes[i], 0) >= 0) return { i, off:0 }; } }
+  else { for(let i=nodes.length-1;i>=0;i--){ if(r.comparePoint(nodes[i], nodes[i].length) <= 0) return { i, off: nodes[i].length }; } }
+  return null;
+}
+/* Tira espaços do começo e do fim da seleção (o duplo clique às vezes pega o espaço seguinte). */
+function aparaSelecao(nodes, s){
+  const ws = ch => /\s/.test(ch||'');
+  while(s.si<s.ei || (s.si===s.ei && s.so<s.eo)){
+    if(s.so>=nodes[s.si].length){ s.si++; s.so = 0; continue; }
+    if(ws(nodes[s.si].nodeValue[s.so])){ s.so++; continue; } break;
+  }
+  // no fim também sai a pontuação pega sem querer ao arrastar (ponto, vírgula, dois-pontos…)
+  const fimSolto = ch => ws(ch) || /[.,;:]/.test(ch||'');
+  while(s.ei>s.si || (s.si===s.ei && s.eo>s.so+1)){
+    if(s.eo<=0){ s.ei--; s.eo = nodes[s.ei].length; continue; }
+    if(fimSolto(nodes[s.ei].nodeValue[s.eo-1])){ s.eo--; continue; } break;
+  }
+  return s;
+}
+function opcoesCamposMarcacao(tipo, sel, semNovo){
+  const campos = camposDoc(tipo);
+  const proprios = campos.filter(x=>!CHAVES_COMUNS.includes(x[0]) && !x[0].startsWith('LIVRE_'));
+  const comuns = campos.filter(x=>CHAVES_COMUNS.includes(x[0]));
+  const livres = campos.filter(x=>x[0].startsWith('LIVRE_'));
+  const opt = x=>`<option value="${x[0]}" ${sel===x[0]?'selected':''}>${esc(x[1])}</option>`;
+  return `<option value="">— escolha o que é este trecho —</option>
+    ${semNovo ? '' : `<option value="__novo" ${sel==='__novo'?'selected':''}>➕ Campo novo (eu preencho a cada quadrimestre)</option>`}
+    ${livres.length ? `<optgroup label="Campos novos já criados">${livres.map(opt).join('')}</optgroup>` : ''}
+    <optgroup label="D${DOCS_MODELO[tipo].o} ${DOCS_MODELO[tipo].nome}">${proprios.map(opt).join('')}</optgroup>
+    <optgroup label="Entidade, quadrimestre e dados apresentados">${comuns.map(opt).join('')}</optgroup>`;
+}
+/* Adivinha o campo: pelas regras de trechos ou porque o texto é igual ao valor atual de algum campo. */
+function adivinharCampo(tipo, texto){
+  const mapa = mapaCampos(tipo), t = texto.trim();
+  for(const r of REGRAS_TRECHOS){ r.re.lastIndex = 0; const m = r.re.exec(t); r.re.lastIndex = 0; if(m && m[0].trim()===t && mapa[r.campo]) return r.campo; }
+  const c = compSel(), d = DOCS_MODELO[tipo].dados(c), alvo = normTxt(t);
+  if(alvo.length<3) return '';
+  const achado = camposDoc(tipo).find(x=>{ try{ const v = x[2](c, d); return typeof v==='string' && normTxt(v)===alvo; }catch(e){ return false; } });
+  return achado ? achado[0] : '';
+}
+function popMarcador(){
+  let p = document.getElementById('popMarcador');
+  if(!p){ p = document.createElement('div'); p.id = 'popMarcador'; p.className = 'pop-marcador'; document.body.appendChild(p);
+    document.addEventListener('keydown', e=>{ if(e.key==='Escape') fecharPopMarcador(); });
+    document.addEventListener('mousedown', e=>{ const pp = document.getElementById('popMarcador'); if(pp && pp.classList.contains('open') && !pp.contains(e.target) && !(e.target.closest && e.target.closest('.modelo-editor'))) fecharPopMarcador(); });
+  }
+  return p;
+}
+function posicionarPop(p, rect){
+  p.classList.add('open');
+  if(window.innerWidth < 640){ p.style.left = '8px'; p.style.right = '8px'; p.style.top = ''; p.style.bottom = '8px'; return; }
+  p.style.right = ''; p.style.bottom = '';
+  const w = 340, h = p.offsetHeight || 220;
+  p.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - w - 8)) + 'px';
+  p.style.top = (rect.bottom + 8 + h < window.innerHeight ? rect.bottom + 8 : Math.max(8, rect.top - h - 8)) + 'px';
+}
+function fecharPopMarcador(){ const p = document.getElementById('popMarcador'); if(p) p.classList.remove('open'); MARCACAO_PEND = null; }
+function abrirPopSelecao(tipo, sugerido){
+  const ed = document.getElementById('editorModelo_'+tipo); const sel = window.getSelection();
+  if(!ed || !sel.rangeCount) return;
+  const r = sel.getRangeAt(0);
+  const a = pontoParaTexto(ed, r.startContainer, r.startOffset, true), b = pontoParaTexto(ed, r.endContainer, r.endOffset, false);
+  if(!a || !b) return;
+  const nodes = textNodesDe(ed);
+  const s = aparaSelecao(nodes, { si:a.i, so:a.off, ei:b.i, eo:b.off });
+  if(s.si>s.ei || (s.si===s.ei && s.so>=s.eo)) return;
+  const rr = document.createRange(); rr.setStart(nodes[s.si], s.so); rr.setEnd(nodes[s.ei], s.eo);
+  const texto = rr.toString();
+  if(Array.from(ed.querySelectorAll('[data-campo]')).some(el=>rr.intersectsNode(el))){
+    showToast('A seleção inclui um campo já marcado. Selecione só o texto, sem a etiqueta.','warning'); return;
+  }
+  const iguais = contarIguais(ed, texto, rr);
+  MARCACAO_PEND = { tipo, s, texto };
+  const escolhido = sugerido || adivinharCampo(tipo, texto);
+  const p = popMarcador();
+  p.innerHTML = `
+    <div class="pm-tit">Este trecho muda a cada quadrimestre?</div>
+    <div class="pm-trecho">“${esc(texto.length>160 ? texto.slice(0,159)+'…' : texto)}”</div>
+    <label>Ele é</label>
+    <select id="pmCampo" onchange="document.getElementById('pmNovoBox').style.display=this.value==='__novo'?'block':'none'">${opcoesCamposMarcacao(tipo, escolhido)}</select>
+    <div id="pmNovoBox" style="display:${escolhido==='__novo'?'block':'none'};"><label>Nome do campo novo</label><input id="pmNovo" placeholder="Ex.: Vereador presente, Nº do processo…"></div>
+    ${iguais ? `<label class="check" style="margin-top:8px;"><input type="checkbox" id="pmTodos" checked> Marcar também as outras ${iguais} vez(es) em que este texto aparece</label>` : ''}
+    <div class="pm-acoes"><button class="btn small" onclick="confirmarMarcacao()">🏷 Marcar campo</button><button class="btn ghost small" onclick="fecharPopMarcador()">Cancelar</button></div>`;
+  posicionarPop(p, rr.getBoundingClientRect());
+  setTimeout(()=>document.getElementById('pmCampo')?.focus(), 30);
+}
+function contarIguais(root, texto, exceto){
+  if(!texto.trim()) return 0;
+  let n = 0;
+  textNodesDe(root).forEach(t=>{
+    if(dentroDeCampo(t)) return;
+    let pos = t.nodeValue.indexOf(texto);
+    while(pos>=0){
+      const dentro = exceto && exceto.startContainer===t && exceto.startOffset===pos;
+      if(!dentro) n++;
+      pos = t.nodeValue.indexOf(texto, pos + texto.length);
+    }
+  });
+  return n;
+}
+async function confirmarMarcacao(){
+  const pend = MARCACAO_PEND; if(!pend) return;
+  const tipo = pend.tipo;
+  if(semPermissao(tipo)) return;
+  let chave = document.getElementById('pmCampo').value;
+  if(!chave){ showToast('Escolha o que é este trecho.','warning'); return; }
+  const todos = !!document.getElementById('pmTodos')?.checked;
+  if(chave==='__novo'){
+    const rot = (document.getElementById('pmNovo')?.value || '').trim();
+    if(!rot){ showToast('Dê um nome ao campo novo.','warning'); document.getElementById('pmNovo')?.focus(); return; }
+    chave = novoCampoLivre(tipo, rot, pend.texto.trim());
+  }
+  try{
+    const { doc, raiz } = parseModelo(normalizarCamposModelo(MODELO_HTML[tipo]));
+    const nodes = textNodesDe(raiz), s = pend.s;
+    if(!nodes[s.si] || !nodes[s.ei]) throw new Error('o modelo mudou — selecione de novo');
+    const range = doc.createRange(); range.setStart(nodes[s.si], s.so); range.setEnd(nodes[s.ei], s.eo);
+    const orig = range.toString();
+    range.deleteContents();
+    const novoSpan = ()=>{ const sp = doc.createElement('span'); sp.setAttribute('data-campo', chave); sp.setAttribute('data-orig', orig); sp.textContent = '{{'+chave+'}}'; return sp; };
+    range.insertNode(novoSpan());
+    let extras = 0;
+    if(todos && orig.trim()){
+      textNodesDe(raiz).forEach(t=>{
+        if(dentroDeCampo(t) || !t.nodeValue.includes(orig)) return;
+        const partes = t.nodeValue.split(orig); const frag = doc.createDocumentFragment();
+        partes.forEach((pt, i)=>{ if(pt) frag.appendChild(doc.createTextNode(pt)); if(i<partes.length-1){ frag.appendChild(novoSpan()); extras++; } });
+        t.parentNode.replaceChild(frag, t);
+      });
+    }
+    fecharPopMarcador();
+    window.getSelection().removeAllRanges();
+    await gravarModelo(tipo, raiz.innerHTML);
+    registrarAcao(`Modelo de ${DOCS_MODELO[tipo].nome}: trecho marcado como {{${chave}}}${extras?` (+${extras})`:''}`);
+    MODELO_UI[tipo].marcar = true;
+    render();
+    showToast(`Campo marcado: ${rotuloCurto(mapaCampos(tipo)[chave])}${extras?` (${extras+1} lugares)`:''}.`, 'success');
+  }catch(e){ console.error(e); showToast('Não foi possível marcar: '+(e.message||e),'error'); }
+}
+function indiceEtiqueta(tipo, chip){
+  const ed = document.getElementById('editorModelo_'+tipo);
+  return Array.from(ed.querySelectorAll('[data-campo]')).indexOf(chip);
+}
+function abrirPopEtiqueta(tipo, chip){
+  const i = indiceEtiqueta(tipo, chip); if(i<0) return;
+  const k = chip.getAttribute('data-campo'), orig = chip.getAttribute('data-orig');
+  const def = mapaCampos(tipo)[k];
+  MARCACAO_PEND = { tipo, etiqueta: i };
+  const p = popMarcador();
+  p.innerHTML = `
+    <div class="pm-tit">🏷 ${esc(def ? rotuloCurto(def) : 'Campo desconhecido: '+k)}</div>
+    ${orig ? `<div class="pm-trecho">Texto original: “${esc(orig.length>160 ? orig.slice(0,159)+'…' : orig)}”</div>` : ''}
+    <label>Trocar por</label>
+    <select id="pmCampo">${opcoesCamposMarcacao(tipo, def ? k : '', true)}</select>
+    <div class="pm-acoes">
+      <button class="btn small" onclick="trocarEtiqueta()">💾 Trocar</button>
+      <button class="btn ghost small" onclick="desmarcarEtiqueta()">${orig ? '↩ Desmarcar (volta o texto original)' : '🗑 Tirar do modelo'}</button>
+    </div>`;
+  posicionarPop(p, chip.getBoundingClientRect());
+}
+async function editarEtiqueta(acao){
+  const pend = MARCACAO_PEND; if(!pend || pend.etiqueta===undefined) return;
+  const tipo = pend.tipo; if(semPermissao(tipo)) return;
+  const nova = document.getElementById('pmCampo')?.value;
+  if(acao==='trocar' && (!nova || nova==='__novo')){ showToast('Escolha o campo.','warning'); return; }
+  const { doc, raiz } = parseModelo(normalizarCamposModelo(MODELO_HTML[tipo]));
+  const el = raiz.querySelectorAll('[data-campo]')[pend.etiqueta];
+  if(!el){ fecharPopMarcador(); render(); return; }
+  const antiga = el.getAttribute('data-campo');
+  if(acao==='trocar'){ el.setAttribute('data-campo', nova); el.textContent = '{{'+nova+'}}'; }
+  else{
+    const orig = el.getAttribute('data-orig');
+    if(!orig && !confirm('Este campo foi escrito direto no arquivo e não tem texto original. Tirá-lo do modelo?')) return;
+    el.replaceWith(doc.createTextNode(orig || ''));
+  }
+  fecharPopMarcador();
+  // campo novo que não aparece mais no modelo deixa de existir
+  const html = raiz.innerHTML;
+  const m = modeloInfo(tipo);
+  if(antiga.startsWith('LIVRE_') && !html.includes('{{'+antiga+'}}') && Array.isArray(m.livres)) m.livres = m.livres.filter(x=>x.chave!==antiga);
+  await gravarModelo(tipo, html);
+  registrarAcao(`Modelo de ${DOCS_MODELO[tipo].nome}: campo {{${antiga}}} ${acao==='trocar'?'trocado por {{'+nova+'}}':'desmarcado'}`);
+  render();
+}
+function trocarEtiqueta(){ return editarEtiqueta('trocar'); }
+function desmarcarEtiqueta(){ return editarEtiqueta('desmarcar'); }
 
 /* ============================================================
    PAINEL DA AUDIÊNCIA (dashboard da competência em exibição)
@@ -6940,6 +7398,7 @@ function render(){
   v.innerHTML = html;
   if(!podeEditar(currentView)) v.querySelectorAll('.edit-only').forEach(n=>n.style.display='none');
   if(base==='area'){ ligarArrastarSoltar(currentView.split(':')[1]); ligarArrastarFiguras(currentView.split(':')[1]); }
+  if(base==='ata' || base==='parecer' || base==='resolucao') ligarEditorModelo(base); else fecharPopMarcador();
   desenharGraficosPendentes();
   atualizarMarcaEntidade();
   atualizarSeletorCompetencia();
