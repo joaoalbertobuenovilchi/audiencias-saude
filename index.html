@@ -427,6 +427,71 @@ td.nowrap{white-space:nowrap;}
 .emoji-picker button.sel{border-color:var(--brand);box-shadow:0 0 0 3px rgba(30,90,168,.18);background:var(--brand-soft);}
 .img-upload-empty{font-size:11.5px;color:var(--ink-soft);border:1px dashed var(--line);border-radius:8px;padding:10px 14px;background:#fff;}
 
+/* ---------------- Documentos anexos e membros do Conselho ---------------- */
+.anx-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media(max-width:900px){.anx-grid{grid-template-columns:1fr;}}
+.anx-bloco{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:#FAFCFE;transition:var(--transition);}
+.anx-bloco.arrastando{border-color:var(--brand);background:var(--brand-soft);box-shadow:0 0 0 3px rgba(30,90,168,.12);}
+.anx-bloco-tit{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
+.anx-bloco-tit b{font-size:13.5px;}
+.anx-bloco-tit .muted{display:block;font-size:11.5px;}
+.anx-lista{display:flex;flex-direction:column;gap:6px;}
+.anx-item{display:flex;align-items:center;gap:10px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;}
+.anx-ic{font-size:20px;flex:0 0 auto;}
+.anx-txt{flex:1;min-width:0;font-size:12.5px;}
+.anx-txt a{color:var(--ink);text-decoration:none;}
+.anx-txt a:hover b{color:var(--brand);text-decoration:underline;}
+.anx-txt b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.anx-txt .muted{display:block;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.anx-item .actions{gap:0;flex-wrap:nowrap;}
+.anx-viewer{position:fixed;inset:0;background:rgba(10,20,40,.55);z-index:350;display:none;align-items:center;justify-content:center;padding:18px;}
+.anx-viewer.open{display:flex;}
+.anx-viewer-box{background:#fff;border-radius:14px;width:min(1100px,100%);height:calc(100vh - 36px);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.3);}
+.anx-viewer-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid var(--line);}
+.anx-viewer-top > b{flex:1;min-width:0;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.anx-viewer-corpo{flex:1;overflow:auto;background:#E9EEF4;}
+.anx-viewer-corpo iframe{width:100%;height:100%;border:0;display:block;background:#fff;}
+.anx-aviso{font-size:11.5px;color:#8a5a1c;background:var(--amber-soft);padding:7px 14px;line-height:1.45;}
+.anx-carregando{padding:48px 20px;text-align:center;color:var(--ink-soft);font-size:13px;}
+.anx-doc{background:#fff;max-width:900px;margin:18px auto;padding:30px 36px;box-shadow:0 2px 10px rgba(0,0,0,.08);font-size:13px;line-height:1.55;color:#15263D;overflow-x:auto;}
+.anx-doc img,.anx-doc-print img{max-width:100%;}
+.anx-doc table,.anx-doc-print table{border-collapse:collapse;font-size:12px;margin:0 0 12px;}
+.anx-doc td,.anx-doc th,.anx-doc-print td,.anx-doc-print th{border:1px solid #C9D3E0;padding:3px 7px;vertical-align:top;}
+.anx-doc-print{font-size:12.5px;line-height:1.5;color:#000;}
+#anexoPrintArea{display:none;}
+@media print{ body.imprimindo-fora #app{display:none !important;} }
+.cms-grupo td{background:#F3F6FA;font-weight:700;color:var(--brand-dark);font-size:12px;}
+.cms-print-cab{display:none;}
+/* Topo dos documentos: frase institucional na faixa cinza; topo que só aparece na impressão */
+.doc-lema{background:#BFBFBF;color:#000;text-align:center;font-family:Arial,Helvetica,sans-serif;font-weight:700;font-size:12pt;line-height:1.3;padding:1px 8px;margin:2px 6% 12px;text-indent:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+.doc-marca-print{display:none;}
+@media print{ .print-target .doc-marca-print{display:block;} }
+.doc-marca-amostra{border:1px dashed var(--line);border-radius:8px;padding:10px 14px;background:#fff;}
+.doc-marca-amostra .doc-lema{margin-bottom:2px;}
+@media print{ .print-target .cms-print-cab{display:block;} .print-target .cms-grupo td{-webkit-print-color-adjust:exact;print-color-adjust:exact;} }
+
+/* Lista de presença do Conselho (mesmo formato da lista em Word: A4 em pé, tabela deitada) */
+.lpc-folha{font-family:"Times New Roman",Times,serif;color:#000;width:180mm;max-width:100%;margin:0 auto;}
+.lpc-cab{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;}
+.lpc-cab img{max-height:25mm;max-width:30mm;object-fit:contain;flex:0 0 auto;}
+.lpc-cab-lado{flex:0 0 30mm;display:flex;align-items:center;gap:4px;}
+.lpc-cab-lado.dir{justify-content:flex-end;}
+.lpc-cab-txt{flex:1;min-width:0;text-align:center;font-family:Arial,Helvetica,sans-serif;line-height:1.15;}
+.lpc-cab-txt .l1{font-weight:700;font-size:15pt;}
+.lpc-cab-txt .end{font-style:italic;font-size:9pt;margin-top:2px;}
+.lpc-cab-txt .mun{font-size:8pt;}
+.ata-doc p.lpc-data,.lpc-data{text-align:right;text-indent:0;font-size:12pt;margin:12px 0 10px;}
+.lpc-tab{border-collapse:collapse;table-layout:fixed;width:173mm;max-width:100%;margin:0 auto;}
+.lpc-tab td,.print-target .lpc-tab td{border:1px solid #000;padding:0;width:11.6mm;vertical-align:middle;background:#fff;color:#000;}
+.lpc-tab td.lpc-h{width:11.2mm;}
+.lpc-tab tr:hover{background:none;}
+.lpc-v{writing-mode:vertical-rl;margin:0 auto;padding:6px 1px;font-size:12pt;line-height:1.1;text-align:start;overflow:hidden;}
+.lpc-h .lpc-v{font-weight:700;font-size:13pt;text-align:center;}
+.lpc-r1 .lpc-v{height:78mm;}
+.lpc-r2 .lpc-v{height:64mm;}
+.lpc-r3 .lpc-v{height:56mm;}
+.lpc-r2 td:not(.lpc-h) .lpc-v{font-size:11pt;}
+
 /* ---------------- Competências ---------------- */
 .comp-card{background:#fff;border:2px solid var(--line);border-radius:10px;padding:14px;box-shadow:var(--shadow);}
 .comp-card.active{border-color:var(--green);box-shadow:0 0 0 3px rgba(46,139,87,.15);}
@@ -1190,8 +1255,8 @@ function trocarCodigoAcesso(){
    Criação desta versão com nuvem: setembro/2026 (mês 1).
    ============================================================ */
 const APP_CRIACAO = { mes: 9, ano: 2026 };
-const APP_ALTERACAO = 16;
-const APP_DATA = '2026-09-24';
+const APP_ALTERACAO = 18;
+const APP_DATA = '2026-10-13';
 function appVersao(){
   const p = APP_DATA.split('-').map(Number);
   const seqMes = (p[0] - APP_CRIACAO.ano)*12 + (p[1] - APP_CRIACAO.mes) + 1;
@@ -1704,6 +1769,8 @@ let STATE = {
   semAuditoria: {},        // {competenciaId: true} quando não houve auditoria no quadrimestre
   apresentacao: {},
   imagens: {},             // {imgId: {partes, criadoEm}}
+  conselhoMembros: [],     // membros do Conselho Municipal de Saúde: {id, nome, representatividade, bienio, criadoEm}
+  anexos: [],              // arquivos PDF/Word/Excel guardados nos blobs 'anx_<id>': {id, grupo:'fundo'|'conselho'|'membros', nome, descricao, ext, mime, tamanho, blob, partes, enviadoEm, enviadoPor}
   migracaoLocal: ''
 };
 let currentView = 'dashboard';
@@ -1809,9 +1876,11 @@ const UNIDADES_INDICADOR = ['%','nº','R$','dias','por mil','por 100 mil','razã
 /* Migração suave: garante que campos/módulos novos existam, SEM apagar nada. */
 function garantirModulosNovos(){
   if(!STATE.entidade || typeof STATE.entidade!=='object') STATE.entidade = {};
-  ['nome','nomeFantasia','cnpj','secretaria','secretario','cargoSecretario','endereco','numero','cep','telefone','email','site','brasao','logo','fundoNome','fundoPresidente'].forEach(k=>{
+  ['nome','nomeFantasia','cnpj','secretaria','secretario','cargoSecretario','endereco','numero','cep','telefone','email','site','brasao','logo','fundoNome','fundoPresidente','conselhoNome','conselhoPresidente','lema'].forEach(k=>{
     if(STATE.entidade[k]===undefined) STATE.entidade[k] = '';
   });
+  if(!Array.isArray(STATE.conselhoMembros)) STATE.conselhoMembros = [];
+  if(!Array.isArray(STATE.anexos)) STATE.anexos = [];
   if(STATE.entidade.brasaoPos!=='esquerda' && STATE.entidade.brasaoPos!=='direita') STATE.entidade.brasaoPos = 'esquerda';
   if(STATE.entidade.logoPos!=='esquerda' && STATE.entidade.logoPos!=='direita') STATE.entidade.logoPos = 'direita';
   if(!Array.isArray(STATE.competencias)) STATE.competencias = [];
@@ -2143,6 +2212,85 @@ function reportBrandRowHTML(){
   if(!slots.esquerda.length && !slots.direita.length) return '';
   return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;"><div style="display:flex;gap:8px;">${slots.esquerda.join('')}</div><div style="display:flex;gap:8px;margin-left:auto;">${slots.direita.join('')}</div></div>`;
 }
+
+/* ============================================================
+   TOPO DOS DOCUMENTOS (brasão, logo e frase institucional)
+   Vai no topo de todos os documentos impressos e exportados para o Word.
+   No Word as imagens seguem embutidas no próprio arquivo, com largura e
+   altura fixas (o Word ignora max-height) — por isso as medidas são lidas
+   antes de exportar (prepararMarcaWord).
+   ============================================================ */
+/* Word: quebra de página num parágrafo próprio (a quebra dentro de <br> some quando a página seguinte começa
+   por uma tabela) e página A4 com as margens do papel timbrado (2,5 cm em cima, 1,5 cm embaixo, 2 cm dos lados). */
+const QUEBRA_WORD = '<p style="page-break-before:always;margin:0;line-height:1pt;font-size:1pt;">&nbsp;</p>';
+const PAGINA_WORD_CSS = '@page WordSection1{size:595.3pt 841.9pt;margin:70.9pt 56.7pt 42.5pt 56.7pt;} div.WordSection1{page:WordSection1;}';
+/* Maior tamanho de fonte (pt, negrito) em que a linha mais comprida cabe na largura dada (pt). */
+function fonteQueCabe(linhas, larguraPt, maxPt, minPt){
+  try{
+    const ctx = fonteQueCabe.ctx || (fonteQueCabe.ctx = document.createElement('canvas').getContext('2d'));
+    ctx.font = 'bold 100px Arial, Helvetica, sans-serif';
+    const porPonto = Math.max(1, ...linhas.map(t=>ctx.measureText(String(t)).width)) / 100;
+    return Math.max(minPt, Math.min(maxPt, Math.floor(larguraPt / porPonto * 2) / 2));
+  }catch(e){ return maxPt; }
+}
+const IMG_DIM = {};
+function medirImagem(src){
+  return new Promise(res=>{
+    if(!src) return res(null);
+    if(IMG_DIM[src]) return res(IMG_DIM[src]);
+    const im = new Image();
+    im.onload = ()=>{ IMG_DIM[src] = { w: im.naturalWidth || 1, h: im.naturalHeight || 1 }; res(IMG_DIM[src]); };
+    im.onerror = ()=>res(null);
+    im.src = src;
+  });
+}
+function imagensMarca(){
+  const e = STATE.entidade || {};
+  return [[e.brasao, e.brasaoPos, 'Brasão'], [e.logo, e.logoPos, 'Logo']]
+    .map(([ref, pos, alt])=>({ src: imgSrc(ref), pos: pos==='direita' ? 'direita' : 'esquerda', alt })).filter(x=>x.src);
+}
+/* No Word a imagem se repete em cada página: vai uma cópia reduzida (240 px, nítida no tamanho impresso) para o arquivo não pesar. */
+const IMG_WORD = {};
+async function prepararMarcaWord(){
+  await Promise.all(imagensMarca().map(async x=>{
+    await medirImagem(x.src);
+    if(!IMG_WORD[x.src]){ try{ IMG_WORD[x.src] = await comprimirImagem(x.src, 240); }catch(e){ IMG_WORD[x.src] = x.src; } }
+  }));
+}
+function imgWordHTML(src, alt, maxW, maxH){
+  const d = IMG_DIM[src] || { w: maxW, h: maxH };
+  let h = maxH, w = Math.round(d.w * maxH / d.h);
+  if(w > maxW){ w = maxW; h = Math.round(d.h * maxW / d.w); }
+  return `<img src="${esc(IMG_WORD[src] || src)}" width="${w}" height="${h}" alt="${esc(alt)}">`;
+}
+function imagensMarcaLado(lado, paraWord, maxW, maxH){
+  return imagensMarca().filter(x=>x.pos===lado).map(x=> paraWord ? imgWordHTML(x.src, x.alt, maxW, maxH)
+    : `<img class="rh-img" style="max-height:${maxH}px;max-width:${maxW}px;object-fit:contain;" src="${esc(x.src)}" alt="${esc(x.alt)}">`).join(paraWord ? '&nbsp;&nbsp;' : '');
+}
+function lemaDoc(){ return String((STATE.entidade||{}).lema||'').trim(); }
+function lemaHTML(paraWord){
+  const t = lemaDoc(); if(!t) return '';
+  return paraWord
+    ? `<p style="background:#BFBFBF;text-align:center;text-indent:0;margin:2pt 40pt 8pt;font-family:Arial,sans-serif;font-size:12pt;font-weight:bold;line-height:1.2;">${esc(t)}</p>`
+    : `<div class="doc-lema">${esc(t)}</div>`;
+}
+/* Topo comum: brasão e logo nas posições escolhidas + a frase (se marcada para todos os documentos). */
+function marcaDocHTML(paraWord){
+  const lema = (STATE.entidade||{}).lemaEmTodos!==false ? lemaHTML(paraWord) : '';
+  if(!paraWord) return reportBrandRowHTML() + lema;
+  if(!imagensMarca().length) return lema;
+  const td = 'border:none;padding:0;vertical-align:middle;';
+  return `<table style="width:100%;border:none;border-collapse:collapse;margin:0 0 6pt;"><tr><td style="${td}text-align:left;">${imagensMarcaLado('esquerda', true, 130, 60)}</td><td style="${td}text-align:right;">${imagensMarcaLado('direita', true, 130, 60)}</td></tr></table>` + lema;
+}
+/* Documentos que já têm o cabeçalho institucional só recebem o topo quando o cabeçalho não mostra logos. */
+function cabecalhoMostraLogos(h){ return !!h && (h.estilo==='banner' ? !!imgSrc(h.banner) : (h.estilo!=='minimalista' && logosDoCab(h).length>0)); }
+function marcaSoImpressaoHTML(){ const m = marcaDocHTML(false); return m ? `<div class="doc-marca-print">${m}</div>` : ''; }
+function setLemaEntidade(campo, valor){
+  if(semPermissao('entidade')){ render(); return; }
+  STATE.entidade[campo] = typeof valor==='string' ? valor.replace(/\s+/g,' ').trim() : valor;
+  registrarAcao('Frase institucional atualizada');
+  saveState(true); render();
+}
 function imagemEntidadeCampoHTML(chave, rotulo, e){
   const src = imgSrc(e[chave]);
   const posKey = chave + 'Pos';
@@ -2207,6 +2355,8 @@ function viewEntidade(){
         <div class="field"><label>Cargo</label><input id="entCargo" value="${esc(e.cargoSecretario)}" placeholder="Secretário(a) Municipal de Saúde"></div>
         <div class="field half"><label>Nome do Fundo Municipal de Saúde</label><input id="entFundo" value="${esc(e.fundoNome)}" placeholder="Fundo Municipal de Saúde de ..."></div>
         <div class="field half"><label>Presidente do Fundo Municipal</label><input id="entFundoPresidente" value="${esc(e.fundoPresidente)}" placeholder="Nome completo"></div>
+        <div class="field half"><label>Nome do Conselho Municipal de Saúde</label><input id="entConselho" value="${esc(e.conselhoNome)}" placeholder="${esc(conselhoNomeAutomatico())}"></div>
+        <div class="field half"><label>Presidente do Conselho Municipal</label><input id="entConselhoPresidente" value="${esc(e.conselhoPresidente)}" placeholder="Nome completo"></div>
         <div class="field half"><label>Endereço</label><input id="entEndereco" value="${esc(e.endereco)}" placeholder="Rua, Av..."></div>
         <div class="field"><label>Número</label><input id="entNumero" value="${esc(e.numero)}"></div>
         <div class="field"><label>CEP</label><input id="entCep" value="${esc(e.cep)}" placeholder="00000-000"></div>
@@ -2218,13 +2368,25 @@ function viewEntidade(){
         <button class="btn" onclick="saveEntidade()">💾 Salvar dados da entidade</button>
       </div>
     </div>
+    <div class="card">
+      <h2>📎 Documentos do Fundo e do Conselho</h2>
+      <div class="subtitle">Leis de criação, decretos, regimento interno, portarias… em PDF, Word ou Excel. Ficam guardados na nuvem para visualizar, imprimir ou baixar o arquivo original.</div>
+      <div class="anx-grid">
+        ${anexosBlocoHTML('fundo')}
+        ${anexosBlocoHTML('conselho')}
+      </div>
+    </div>
+    ${conselhoMembrosCardHTML()}
     <div class="card edit-only">
-      <h2>🖼️ Brasão e logo</h2>
-      <div class="subtitle">Aparecem no topo dos relatórios impressos e são sugeridos ao criar um cabeçalho novo. As imagens são reduzidas automaticamente antes de gravar.</div>
+      <h2>🖼️ Brasão, logo e frase institucional</h2>
+      <div class="subtitle">Aparecem no topo de todos os documentos — impressos e exportados para o Word: ata, listas de presença, parecer, resolução, relatórios e cadastros — e são sugeridos ao criar um cabeçalho novo. As imagens são reduzidas automaticamente antes de gravar.</div>
       <div class="formgrid">
         ${imagemEntidadeCampoHTML('brasao', 'Brasão (ex.: do município)', e)}
         ${imagemEntidadeCampoHTML('logo', 'Logo (ex.: da Secretaria de Saúde)', e)}
+        <div class="field half"><label>Frase institucional (faixa cinza abaixo do brasão e do logo)</label><input value="${esc(e.lema)}" placeholder="Ex.: “O tempo é agora”" onchange="setLemaEntidade('lema', this.value)"></div>
+        <div class="field half" style="display:flex;align-items:flex-end;"><label class="check" style="text-transform:none;letter-spacing:0;font-weight:500;font-size:13px;color:var(--ink);"><input type="checkbox" ${e.lemaEmTodos!==false?'checked':''} onchange="setLemaEntidade('lemaEmTodos', this.checked)"> Mostrar a frase em todos os documentos (desmarcado: só na lista de presença do Conselho)</label></div>
       </div>
+      ${(imagensMarca().length || lemaDoc()) ? `<div class="muted" style="font-size:11.5px;margin:12px 0 6px;">Como fica o topo dos documentos:</div><div class="doc-marca-amostra">${marcaDocHTML(false) || lemaHTML(false)}</div>` : ''}
     </div>
     <div class="card">
       <div class="flexrow" style="margin-bottom:8px;">
@@ -2232,13 +2394,14 @@ function viewEntidade(){
         <button class="btn ghost small" onclick="printReportAsk('entPrint','Cadastro da Entidade')">🖨️ Imprimir</button>
       </div>
       <div id="entPrint">
-        ${reportBrandRowHTML()}
+        ${marcaDocHTML(false)}
         <table><tbody>
           ${linha('Nome da entidade', e.nome)}${linha('Nome fantasia', e.nomeFantasia)}${linha('CNPJ', e.cnpj)}
           ${linha('Secretaria Municipal', e.secretaria)}${linha('Gestor(a)', [e.secretario, e.cargoSecretario].filter(Boolean).join(' — '))}
           ${linha('Fundo Municipal de Saúde', e.fundoNome)}${linha('Presidente do Fundo Municipal', e.fundoPresidente)}
+          ${linha('Conselho Municipal de Saúde', e.conselhoNome)}${linha('Presidente do Conselho Municipal', e.conselhoPresidente)}
           ${linha('Endereço', [e.endereco, e.numero].filter(Boolean).join(', '))}${linha('CEP', e.cep)}
-          ${linha('Telefone', e.telefone)}${linha('E-mail', e.email)}${linha('Site', e.site)}
+          ${linha('Telefone', e.telefone)}${linha('E-mail', e.email)}${linha('Site', e.site)}${e.lema ? linha('Frase institucional', e.lema) : ''}
         </tbody></table>
       </div>
     </div>`;
@@ -2250,10 +2413,374 @@ function saveEntidade(){
     nome: val('entNome'), nomeFantasia: val('entFantasia'), cnpj: val('entCnpj'), secretaria: val('entSecretaria'),
     secretario: val('entSecretario'), cargoSecretario: val('entCargo'), endereco: val('entEndereco'), numero: val('entNumero'),
     cep: val('entCep'), telefone: val('entTelefone'), email: val('entEmail'), site: val('entSite'),
-    fundoNome: val('entFundo'), fundoPresidente: val('entFundoPresidente')
+    fundoNome: val('entFundo'), fundoPresidente: val('entFundoPresidente'),
+    conselhoNome: val('entConselho'), conselhoPresidente: val('entConselhoPresidente')
   });
   registrarAcao('Entidade atualizada');
   saveState(true); render(); showToast('Dados da entidade salvos.','success');
+}
+
+/* ============================================================
+   MEMBROS DO CONSELHO MUNICIPAL DE SAÚDE
+   Nome, representatividade e biênio. A lista fica agrupada por biênio
+   (o mais recente primeiro), na ordem em que os membros foram cadastrados.
+   ============================================================ */
+const REPRESENTATIVIDADES_CMS = ['Usuários do SUS','Trabalhadores da Saúde','Gestor (Poder Público)','Prestadores de Serviço'];
+let editingConselheiroId = null;
+let conselhoFiltroBienio = '';
+function bieniosConselho(){
+  const set = new Set((STATE.conselhoMembros||[]).map(m=>String(m.bienio||'').trim()).filter(Boolean));
+  return Array.from(set).sort((a,b)=>b.localeCompare(a, 'pt-BR', { numeric:true }));
+}
+function conselhoMembrosCardHTML(){
+  const membros = STATE.conselhoMembros || [];
+  const ed = editingConselheiroId ? membros.find(m=>m.id===editingConselheiroId) : null;
+  const bienios = bieniosConselho();
+  if(conselhoFiltroBienio && !bienios.includes(conselhoFiltroBienio)) conselhoFiltroBienio = '';
+  const grupos = bienios.filter(b=>!conselhoFiltroBienio || b===conselhoFiltroBienio).map(b=>({ bienio:b, lista: membros.filter(m=>String(m.bienio||'').trim()===b) }));
+  const sugReprs = Array.from(new Set(REPRESENTATIVIDADES_CMS.concat(membros.map(m=>m.representatividade).filter(Boolean))));
+  const ultimo = membros[membros.length-1] || {};
+  const nomeConselho = conselhoPadrao();
+  let n = 0;
+  const linhas = grupos.map(g=>`
+          <tr class="cms-grupo"><td colspan="4">Biênio ${esc(g.bienio)} — ${g.lista.length} membro${g.lista.length===1?'':'s'}</td><td class="no-print edit-only"></td></tr>
+          ${g.lista.map(m=>`<tr${m.id===editingConselheiroId?' style="background:var(--brand-soft);"':''}>
+            <td style="width:40px;">${++n}</td><td><b>${esc(m.nome)}</b></td><td>${esc(m.representatividade)||'—'}</td><td class="nowrap">${esc(m.bienio)}</td>
+            <td class="nowrap no-print edit-only"><button class="btn ghost small" onclick="editarMembroConselho('${m.id}')">✏️ editar</button><button class="btn ghost small" onclick="excluirMembroConselho('${m.id}')">🗑 excluir</button></td>
+          </tr>`).join('')}`).join('');
+  return `
+    <div class="card">
+      <div class="flexrow" style="margin-bottom:6px;">
+        <h2 style="margin:0;">👥 Membros do Conselho Municipal de Saúde</h2>
+        <div class="actions">
+          ${bienios.length>1 ? `<select class="fig-in" style="margin:0;width:auto;" onchange="conselhoFiltroBienio=this.value;render()">
+            <option value="">Todos os biênios</option>
+            ${bienios.map(b=>`<option value="${esc(b)}" ${b===conselhoFiltroBienio?'selected':''}>Biênio ${esc(b)}</option>`).join('')}
+          </select>` : ''}
+          <button class="btn ghost small" onclick="printReportAsk('conselhoPrint','Membros do Conselho Municipal de Saúde')" ${membros.length?'':'disabled'}>🖨️ Imprimir lista</button>
+        </div>
+      </div>
+      <div class="subtitle">Cadastre cada conselheiro com a representatividade (segmento ou entidade que representa) e o biênio do mandato.</div>
+      <div class="edit-only" style="margin-bottom:14px;">
+        <div class="formgrid">
+          <div class="field half"><label>Nome do membro</label><input id="cmsNome" value="${ed?esc(ed.nome):''}" placeholder="Nome completo" onkeydown="if(event.key==='Enter') salvarMembroConselho()"></div>
+          <div class="field"><label>Representatividade</label><input id="cmsRepr" list="cmsReprLista" value="${esc(ed ? ed.representatividade : (ultimo.representatividade||''))}" placeholder="Ex.: Usuários do SUS" onkeydown="if(event.key==='Enter') salvarMembroConselho()"></div>
+          <div class="field"><label>Biênio</label><input id="cmsBienio" list="cmsBienioLista" value="${esc(ed ? ed.bienio : (ultimo.bienio||''))}" placeholder="Ex.: 2025/2027" onkeydown="if(event.key==='Enter') salvarMembroConselho()"></div>
+        </div>
+        <datalist id="cmsReprLista">${sugReprs.map(r=>`<option value="${esc(r)}">`).join('')}</datalist>
+        <datalist id="cmsBienioLista">${bienios.map(b=>`<option value="${esc(b)}">`).join('')}</datalist>
+        <div class="actions" style="margin-top:12px;">
+          ${ed ? `<button class="btn" onclick="salvarMembroConselho()">💾 Salvar alterações</button><button class="btn secondary" onclick="cancelarMembroConselho()">Cancelar</button>`
+               : `<button class="btn" onclick="salvarMembroConselho()">+ Adicionar membro</button>`}
+        </div>
+      </div>
+      <div id="conselhoPrint">
+        <div class="cms-print-cab">
+          ${marcaDocHTML(false)}
+          <div class="ata-ent">${esc(nomeConselho.toUpperCase())}</div>
+          <h3 style="text-align:center;margin:8px 0 12px;">Membros do Conselho${conselhoFiltroBienio ? ' — Biênio '+esc(conselhoFiltroBienio) : ''}</h3>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Nº</th><th>Nome</th><th>Representatividade</th><th>Biênio</th><th class="no-print edit-only"></th></tr></thead>
+          <tbody>${linhas || '<tr class="empty-row"><td colspan="5">Nenhum membro cadastrado.</td></tr>'}</tbody>
+        </table></div>
+      </div>
+      <div style="margin-top:14px;">${anexosBlocoHTML('membros')}</div>
+    </div>`;
+}
+function salvarMembroConselho(){
+  if(semPermissao('entidade')) return;
+  const val = id => (document.getElementById(id)?.value || '').replace(/\s+/g,' ').trim();
+  const nome = val('cmsNome'), representatividade = val('cmsRepr'), bienio = val('cmsBienio');
+  if(!nome){ showToast('Informe o nome do membro.','warning'); document.getElementById('cmsNome')?.focus(); return; }
+  if(!representatividade){ showToast('Informe a representatividade do membro.','warning'); document.getElementById('cmsRepr')?.focus(); return; }
+  if(!bienio){ showToast('Informe o biênio do mandato (ex.: 2025/2027).','warning'); document.getElementById('cmsBienio')?.focus(); return; }
+  const lista = STATE.conselhoMembros;
+  const repetido = lista.find(m=>m.id!==editingConselheiroId && normTxt(m.nome)===normTxt(nome) && normTxt(m.bienio)===normTxt(bienio));
+  if(repetido && !confirm(`${nome} já está cadastrado(a) no biênio ${bienio}. Cadastrar mesmo assim?`)) return;
+  if(editingConselheiroId){
+    const m = lista.find(x=>x.id===editingConselheiroId);
+    if(m) Object.assign(m, { nome, representatividade, bienio, atualizadoEm: new Date().toISOString() });
+    registrarAcao('Membro do Conselho alterado: '+nome);
+    editingConselheiroId = null;
+  } else {
+    lista.push({ id: uid(), nome, representatividade, bienio, criadoEm: new Date().toISOString() });
+    registrarAcao('Membro do Conselho cadastrado: '+nome);
+  }
+  saveState(true); render();
+  showToast('Membro do Conselho salvo.','success');
+  const campo = document.getElementById('cmsNome'); if(campo) campo.focus();
+}
+function editarMembroConselho(id){
+  if(semPermissao('entidade')) return;
+  editingConselheiroId = id; render();
+  const campo = document.getElementById('cmsNome'); if(campo){ campo.focus(); campo.scrollIntoView({ block:'center', behavior:'smooth' }); }
+}
+function cancelarMembroConselho(){ editingConselheiroId = null; render(); }
+function excluirMembroConselho(id){
+  if(semPermissao('entidade')) return;
+  const m = STATE.conselhoMembros.find(x=>x.id===id); if(!m) return;
+  if(!confirm(`Excluir ${m.nome} (biênio ${m.bienio}) da lista de membros do Conselho?`)) return;
+  STATE.conselhoMembros = STATE.conselhoMembros.filter(x=>x.id!==id);
+  if(editingConselheiroId===id) editingConselheiroId = null;
+  registrarAcao('Membro do Conselho excluído: '+m.nome);
+  saveState(true); render();
+}
+
+/* ============================================================
+   DOCUMENTOS ANEXOS (Fundo, Conselho e membros do Conselho)
+   O arquivo original (PDF, Word ou Excel) é gravado inteiro nos blobs
+   'anx_<id>' e o STATE guarda só a ficha. PDF abre no leitor do navegador;
+   Word e Excel são convertidos para visualizar e imprimir aqui mesmo, e o
+   botão "Baixar" devolve sempre o arquivo original.
+   ============================================================ */
+const GRUPOS_ANEXO = {
+  fundo:    { titulo:'💰 Fundo Municipal de Saúde',   sub: ()=>STATE.entidade.fundoNome,  vazio:'Ex.: lei de criação do Fundo, decreto de nomeação do presidente, CNPJ…' },
+  conselho: { titulo:'🏛️ Conselho Municipal de Saúde', sub: ()=>STATE.entidade.conselhoNome, vazio:'Ex.: lei de criação do Conselho, regimento interno, resoluções…' },
+  membros:  { titulo:'📎 Documentos dos membros',      sub: ()=>'', vazio:'Ex.: decreto ou portaria de nomeação, termo de posse, lista dos conselheiros…' },
+};
+const MIME_ANEXO = {
+  pdf:'application/pdf', doc:'application/msword', rtf:'application/rtf',
+  docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xls:'application/vnd.ms-excel', xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  ods:'application/vnd.oasis.opendocument.spreadsheet', csv:'text/csv'
+};
+const EXT_ANEXO = Object.keys(MIME_ANEXO);
+const ANEXO_MAX_MB = 10;
+const ANEXO_CACHE = {};
+let importandoAnexo = false;
+let anexoAbertoId = null, anexoAbertoUrl = '';
+function extAnexo(nome){ const m = String(nome||'').toLowerCase().match(/\.([a-z0-9]+)$/); return m ? m[1] : ''; }
+function iconeAnexo(ext){ return ext==='pdf' ? '📕' : ['doc','docx','rtf'].includes(ext) ? '📘' : '📗'; }
+function tamanhoArquivoTexto(b){ b = Number(b)||0; return b>=1048576 ? (b/1048576).toLocaleString('pt-BR',{maximumFractionDigits:1})+' MB' : Math.max(1, Math.round(b/1024))+' KB'; }
+function anexosDoGrupo(grupo){ return (STATE.anexos||[]).filter(a=>a.grupo===grupo); }
+function anexosBlocoHTML(grupo){
+  const g = GRUPOS_ANEXO[grupo], lista = anexosDoGrupo(grupo), sub = g.sub();
+  return `
+    <div class="anx-bloco" ondragover="anexoArrastando(event,this,true)" ondragleave="anexoArrastando(event,this,false)" ondrop="soltarAnexos(event,'${grupo}',this)">
+      <div class="anx-bloco-tit">
+        <div><b>${g.titulo}</b>${sub ? `<span class="muted">${esc(sub)}</span>` : ''}</div>
+        <button type="button" class="btn secondary small edit-only" onclick="document.getElementById('anxFile_${grupo}').click()">⭱ Importar arquivo</button>
+        <input type="file" id="anxFile_${grupo}" accept="${EXT_ANEXO.map(x=>'.'+x).join(',')}" multiple style="display:none;" onchange="importarAnexos(event,'${grupo}')">
+      </div>
+      <div class="anx-lista">
+        ${lista.length ? lista.map(anexoItemHTML).join('') : `<div class="img-upload-empty">Nenhum arquivo importado. <span class="edit-only">${esc(g.vazio)} PDF, Word ou Excel, até ${ANEXO_MAX_MB} MB — clique em “Importar arquivo” ou arraste para cá.</span></div>`}
+      </div>
+    </div>`;
+}
+function anexoItemHTML(a){
+  const quando = a.enviadoEm ? new Date(a.enviadoEm).toLocaleDateString('pt-BR') : '';
+  return `
+    <div class="anx-item">
+      <span class="anx-ic">${iconeAnexo(a.ext)}</span>
+      <div class="anx-txt">
+        <a href="#" onclick="visualizarAnexo('${a.id}');return false;" title="Visualizar ${esc(a.nome)}"><b>${esc(a.descricao || a.nome)}</b></a>
+        <span class="muted">${esc(a.nome)} · ${tamanhoArquivoTexto(a.tamanho)}${quando ? ' · '+quando : ''}</span>
+      </div>
+      <div class="actions">
+        <button class="btn ghost small" onclick="visualizarAnexo('${a.id}')" title="Visualizar">👁️</button>
+        <button class="btn ghost small" onclick="imprimirAnexo('${a.id}')" title="Imprimir">🖨️</button>
+        <button class="btn ghost small" onclick="baixarAnexo('${a.id}')" title="Baixar o arquivo original">⭳</button>
+        <button class="btn ghost small edit-only" onclick="renomearAnexo('${a.id}')" title="Alterar a descrição">✏️</button>
+        <button class="btn ghost small edit-only" onclick="excluirAnexo('${a.id}')" title="Excluir o arquivo">🗑</button>
+      </div>
+    </div>`;
+}
+function anexoArrastando(ev, el, sim){
+  if(!podeEditar('entidade')) return;
+  ev.preventDefault();
+  if(!sim && el.contains(ev.relatedTarget)) return;
+  el.classList.toggle('arrastando', sim);
+}
+function soltarAnexos(ev, grupo, el){
+  ev.preventDefault();
+  if(el) el.classList.remove('arrastando');
+  const files = Array.from((ev.dataTransfer && ev.dataTransfer.files) || []);
+  if(files.length) guardarAnexos(files, grupo);
+}
+function importarAnexos(ev, grupo){
+  const files = Array.from(ev.target.files || []); ev.target.value = '';
+  if(files.length) guardarAnexos(files, grupo);
+}
+function lerArquivoComoDataURL(file){
+  return new Promise((resolve, reject)=>{
+    const r = new FileReader();
+    r.onload = ()=>resolve(String(r.result||''));
+    r.onerror = ()=>reject(new Error('não foi possível ler o arquivo'));
+    r.readAsDataURL(file);
+  });
+}
+async function guardarAnexos(files, grupo){
+  if(semPermissao('entidade')) return;
+  if(!firebaseOk || !estadoCarregadoOk){ showToast('Os dados da nuvem não foram carregados — recarregue a página antes de importar arquivos.','error'); return; }
+  if(importandoAnexo){ showToast('Aguarde: ainda estou gravando o arquivo anterior.','warning'); return; }
+  importandoAnexo = true;
+  let ok = 0;
+  const recusados = [];
+  try{
+    for(const file of files){
+      const ext = extAnexo(file.name);
+      if(!EXT_ANEXO.includes(ext)){ recusados.push(`${file.name} (use PDF, Word ou Excel)`); continue; }
+      if(!file.size){ recusados.push(`${file.name} (arquivo vazio)`); continue; }
+      if(file.size > ANEXO_MAX_MB*1048576){ recusados.push(`${file.name} (${tamanhoArquivoTexto(file.size)} — o limite é ${ANEXO_MAX_MB} MB)`); continue; }
+      showToast(`Gravando ${file.name} na nuvem…`);
+      const lido = await lerArquivoComoDataURL(file);
+      const dataUrl = 'data:' + MIME_ANEXO[ext] + ';base64,' + lido.slice(lido.indexOf(',')+1);
+      const id = uid(), blob = 'anx_' + id;
+      const partes = await blobSalvar(blob, dataUrl, 0);
+      ANEXO_CACHE[id] = dataUrl;
+      STATE.anexos.push({ id, grupo, nome: file.name, descricao: file.name.replace(/\.[^.]+$/,''), ext, mime: MIME_ANEXO[ext], tamanho: file.size,
+                          blob, partes, enviadoEm: new Date().toISOString(), enviadoPor: currentUser ? (currentUser.nome||currentUser.usuario) : '' });
+      registrarAcao(`Arquivo importado (${GRUPOS_ANEXO[grupo].titulo.replace(/^\S+\s/,'')}): ${file.name}`);
+      ok++;
+    }
+  }catch(e){ console.error(e); showToast('Não foi possível gravar o arquivo: '+(e.message||e),'error'); }
+  finally{ importandoAnexo = false; }
+  if(ok){ saveState(true); render(); }
+  if(recusados.length) showToast('Não importado: '+recusados.join('; ')+'.','warning');
+  else if(ok) showToast(ok===1 ? 'Arquivo importado. Use 👁️ para visualizar ou 🖨️ para imprimir.' : ok+' arquivos importados.','success');
+}
+async function lerAnexo(a){
+  if(ANEXO_CACHE[a.id]) return ANEXO_CACHE[a.id];
+  const d = await blobLer(a.blob, a.partes);
+  ANEXO_CACHE[a.id] = d;
+  return d;
+}
+function dataUrlParaBlob(dataUrl, mime){
+  const i = dataUrl.indexOf(',');
+  const bin = atob(dataUrl.slice(i+1));
+  const bytes = new Uint8Array(bin.length);
+  for(let k=0; k<bin.length; k++) bytes[k] = bin.charCodeAt(k);
+  return new Blob([bytes], { type: mime || dataUrl.slice(5, i).split(';')[0] || 'application/octet-stream' });
+}
+/* Word/Excel viram HTML para visualizar e imprimir (o original continua disponível em "Baixar"). */
+async function anexoParaHTML(a, blob){
+  const buf = await blob.arrayBuffer();
+  if(a.ext==='docx') return docxParaHTML(buf);
+  if(a.ext==='doc' || a.ext==='rtf') return docParaHTML(buf);
+  const wb = a.ext==='csv' ? XLSX.read(decodificarTexto(buf), { type:'string' }) : XLSX.read(buf, { type:'array', cellDates:true });
+  const infoAbas = (wb.Workbook && wb.Workbook.Sheets) || [];
+  const abas = wb.SheetNames.filter((n,i)=>!(infoAbas[i] && infoAbas[i].Hidden) && wb.Sheets[n] && wb.Sheets[n]['!ref']);
+  if(!abas.length) throw new Error('a planilha está vazia');
+  return { html: abas.map(n=>(abas.length>1 ? `<h3>${esc(n)}</h3>` : '') + XLSX.utils.sheet_to_html(wb.Sheets[n], { header:'', footer:'' })).join(''), aviso:'' };
+}
+function anexoViewerEl(){
+  let v = document.getElementById('anexoViewer');
+  if(v) return v;
+  v = document.createElement('div');
+  v.id = 'anexoViewer'; v.className = 'anx-viewer';
+  v.onclick = ev=>{ if(ev.target===v) fecharAnexo(); };
+  v.innerHTML = `
+    <div class="anx-viewer-box">
+      <div class="anx-viewer-top">
+        <b id="anxViewerTitulo"></b>
+        <div class="actions">
+          <button class="btn secondary small" onclick="imprimirAnexo(anexoAbertoId)">🖨️ Imprimir</button>
+          <button class="btn secondary small" onclick="baixarAnexo(anexoAbertoId)">⭳ Baixar original</button>
+          <button class="btn secondary small" id="anxViewerAba" onclick="if(anexoAbertoUrl) window.open(anexoAbertoUrl,'_blank')">↗ Abrir em nova aba</button>
+          <button class="btn small" onclick="fecharAnexo()">✕ Fechar</button>
+        </div>
+      </div>
+      <div id="anxViewerAviso" class="anx-aviso" style="display:none;"></div>
+      <div class="anx-viewer-corpo" id="anxViewerCorpo"></div>
+    </div>`;
+  document.body.appendChild(v);
+  document.addEventListener('keydown', ev=>{ if(ev.key==='Escape' && v.classList.contains('open') && !document.getElementById('printOrientDialog').classList.contains('open')) fecharAnexo(); });
+  return v;
+}
+async function visualizarAnexo(id){
+  const a = (STATE.anexos||[]).find(x=>x.id===id); if(!a) return;
+  const v = anexoViewerEl();
+  const corpo = document.getElementById('anxViewerCorpo'), aviso = document.getElementById('anxViewerAviso');
+  fecharAnexo();
+  anexoAbertoId = id;
+  document.getElementById('anxViewerTitulo').textContent = a.descricao || a.nome;
+  document.getElementById('anxViewerAba').style.display = a.ext==='pdf' ? '' : 'none';
+  aviso.style.display = 'none';
+  corpo.innerHTML = '<div class="anx-carregando">⏳ Carregando o arquivo…</div>';
+  v.classList.add('open');
+  registrarComando('👁️ Documento: '+a.nome);
+  try{
+    const blob = dataUrlParaBlob(await lerAnexo(a), a.mime);
+    if(anexoAbertoId!==id) return;
+    if(a.ext==='pdf'){
+      anexoAbertoUrl = URL.createObjectURL(blob);
+      corpo.innerHTML = `<iframe src="${anexoAbertoUrl}" title="${esc(a.nome)}"></iframe>`;
+      return;
+    }
+    const r = await anexoParaHTML(a, blob);
+    if(anexoAbertoId!==id) return;
+    corpo.innerHTML = `<div class="anx-doc" id="anxDocConteudo">${sanitizarHTML(r.html)}</div>`;
+    if(r.aviso){ aviso.textContent = 'Visualização simplificada — ' + r.aviso.replace(/importe de novo/gi,'importe esta versão') + ' O botão “Baixar original” devolve o arquivo exatamente como foi enviado.'; aviso.style.display = ''; }
+  }catch(e){
+    console.error(e);
+    if(anexoAbertoId!==id) return;
+    corpo.innerHTML = `<div class="anx-carregando">Não foi possível mostrar este arquivo aqui (${esc(e.message||e)}).<br><br><button class="btn" onclick="baixarAnexo('${a.id}')">⭳ Baixar o arquivo original</button></div>`;
+  }
+}
+function fecharAnexo(){
+  const v = document.getElementById('anexoViewer');
+  if(v){ v.classList.remove('open'); const corpo = document.getElementById('anxViewerCorpo'); if(corpo) corpo.innerHTML = ''; }
+  if(anexoAbertoUrl){ const u = anexoAbertoUrl; setTimeout(()=>URL.revokeObjectURL(u), 60000); }
+  anexoAbertoId = null; anexoAbertoUrl = '';
+}
+async function baixarAnexo(id){
+  const a = (STATE.anexos||[]).find(x=>x.id===id); if(!a) return;
+  try{
+    showToast('Preparando o arquivo…');
+    baixarArquivo(dataUrlParaBlob(await lerAnexo(a), a.mime), a.nome);
+    registrarComando('⭳ Documento: '+a.nome);
+  }catch(e){ showToast('Não foi possível baixar o arquivo: '+(e.message||e),'error'); }
+}
+async function imprimirAnexo(id){
+  const a = (STATE.anexos||[]).find(x=>x.id===id); if(!a) return;
+  try{
+    showToast('Preparando a impressão…');
+    const blob = dataUrlParaBlob(await lerAnexo(a), a.mime);
+    if(a.ext==='pdf'){
+      // o PDF é impresso pelo leitor do próprio navegador, num quadro invisível
+      const url = URL.createObjectURL(blob);
+      const antigo = document.getElementById('anxPrintFrame'); if(antigo) antigo.remove();
+      const f = document.createElement('iframe');
+      f.id = 'anxPrintFrame';
+      f.style.cssText = 'position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0;';
+      f.onload = ()=>setTimeout(()=>{
+        try{ f.contentWindow.focus(); f.contentWindow.print(); }
+        catch(e){ window.open(url, '_blank'); showToast('Use o botão de impressão do leitor de PDF que abriu na nova aba.'); }
+      }, 400);
+      f.src = url;
+      document.body.appendChild(f);
+      setTimeout(()=>URL.revokeObjectURL(url), 10*60000);
+    } else {
+      const aberto = anexoAbertoId===id && document.getElementById('anxDocConteudo');
+      const html = aberto ? aberto.innerHTML : sanitizarHTML((await anexoParaHTML(a, blob)).html);
+      let area = document.getElementById('anexoPrintArea');
+      if(!area){ area = document.createElement('div'); area.id = 'anexoPrintArea'; document.body.appendChild(area); }
+      area.innerHTML = `<div class="anx-doc-print">${html}</div>`;
+      printReportAsk('anexoPrintArea', 'Imprimir: ' + (a.descricao || a.nome));
+    }
+    registrarComando('🖨️ Documento: '+a.nome);
+  }catch(e){ console.error(e); showToast('Não foi possível imprimir: '+(e.message||e)+'. Baixe o arquivo e imprima pelo programa dele.','error'); }
+}
+function renomearAnexo(id){
+  if(semPermissao('entidade')) return;
+  const a = (STATE.anexos||[]).find(x=>x.id===id); if(!a) return;
+  const novo = prompt('Descrição do documento (ex.: Lei nº 1.234/1991 — criação do Fundo):', a.descricao || a.nome);
+  if(novo===null) return;
+  a.descricao = novo.replace(/\s+/g,' ').trim() || a.nome.replace(/\.[^.]+$/,'');
+  registrarAcao('Descrição de documento alterada: '+a.nome);
+  saveState(true); render();
+}
+async function excluirAnexo(id){
+  if(semPermissao('entidade')) return;
+  const a = (STATE.anexos||[]).find(x=>x.id===id); if(!a) return;
+  if(!confirm(`Excluir o arquivo “${a.descricao || a.nome}”?\n\nEle será apagado da nuvem. Se ainda precisar dele, use ⭳ para baixar uma cópia antes.`)) return;
+  if(anexoAbertoId===id) fecharAnexo();
+  STATE.anexos = STATE.anexos.filter(x=>x.id!==id);
+  delete ANEXO_CACHE[id];
+  registrarAcao('Arquivo excluído: '+a.nome);
+  saveState(true); render();
+  try{ await blobExcluir(a.blob, a.partes); }catch(e){}
 }
 
 /* ============================================================
@@ -3565,6 +4092,7 @@ function detalheBaseHTML(b, area, pode){
   const ocultos = b.cfg.ocultar || [];
   return `
     <div id="basePrint">
+    ${marcaSoImpressaoHTML()}
     <div class="base-head" style="border-left-color:${esc(area.cor)};">
       <div class="bh-ic">📄</div>
       <div style="flex:1;min-width:220px;">
@@ -3767,6 +4295,7 @@ function viewFinanceiro(){
   const larg = pct!==null ? Math.min(100, pct/Math.max(30, min*2)*100) : 0;
   return `
     <div id="finPrint">
+    ${cabecalhoMostraLogos(cabecalhoAtivo()) ? '' : marcaSoImpressaoHTML()}
     ${renderInstHeader(cabecalhoAtivo())}
     <div class="grid auto" style="margin-bottom:16px;">
       <div class="stat" style="border-top-color:${cumpre===null?'var(--line)':cumpre?'var(--green)':'var(--red)'}"><div class="label">% aplicado em saúde</div><div class="value" style="color:${cumpre===null?'var(--ink-soft)':cumpre?'var(--green)':'var(--red)'}">${pct!==null?fmtPct(pct,2):'—'}</div><div class="hint">${cumpre===null?'preencha receita e despesa':cumpre?'✔ cumpre o mínimo de '+fmtPct(min,0):'✖ abaixo do mínimo de '+fmtPct(min,0)}</div></div>
@@ -4456,8 +4985,10 @@ function adicionarPresente(){
   if(semPermissao('ata')) return;
   const val = id => (document.getElementById(id)?.value || '').trim();
   const nome = val('prNome'); if(!nome){ showToast('Informe o nome.','warning'); return; }
-  const a = ataDe(compSel().id, true);
+  const c = compSel(), a = ataDe(c.id, true);
   if(a.presentes.some(p=>normTxt(p.nome)===normTxt(nome)) && !confirm(`"${nome}" já está na lista. Acrescentar de novo?`)) return;
+  const conselheiro = incluiConselhoNaLista(c, a) && membrosConselhoDaAta(c, a).find(m=>normTxt(m.nome)===normTxt(nome));
+  if(conselheiro && !confirm(`"${nome}" é membro do Conselho (${conselheiro.representatividade}) e já sai na lista do Conselho. Acrescentar também em “Outros participantes”?`)) return;
   a.presentes.push({ id: uid(), nome, cargo: val('prCargo'), segmento: val('prSeg'), instituicao: val('prInst') });
   saveState(false); render();
   setTimeout(()=>document.getElementById('prNome')?.focus(), 30);
@@ -4566,17 +5097,20 @@ function ataDocumentoHTML(c, a, paraWord){
   const pres = a.presidente ? `sob a presidência de ${esc(a.presidente)}${a.cargoPresidente?', '+esc(a.cargoPresidente):''}` : 'sob a presidência do(a) gestor(a) municipal de saúde';
   const secr = a.secretario ? `, secretariada por ${esc(a.secretario)}${a.cargoSecretario?', '+esc(a.cargoSecretario):''}` : '';
   const nPres = a.presentes.length;
+  const presenca = incluiConselhoNaLista(c, a)
+    ? `com a presença dos membros do ${esc(conselhoPadrao())}${nPres ? ` e de ${numeroPorExtenso(nPres)} (${nPres}) outro${nPres>1?'s':''} participante${nPres>1?'s':''}, conforme listas de presença anexas` : ', conforme lista de presença anexa'}`
+    : `com a presença de ${nPres ? numeroPorExtenso(nPres)+' ('+nPres+') participante'+(nPres>1?'s':'')+', conforme lista de presença anexa' : 'participantes conforme lista de presença anexa'}`;
   const perg = a.perguntas;
   const enc = a.encaminhamentos;
   const retorno = encaminhamentosDaAnterior(c);
-  const quebra = paraWord ? '<br style="page-break-before:always" clear="all">' : '<div class="ata-quebra"></div>';
+  const quebra = paraWord ? QUEBRA_WORD : '<div class="ata-quebra"></div>';
   return `
     <div class="ata-doc">
-      ${paraWord ? '' : reportBrandRowHTML()}
+      ${marcaDocHTML(paraWord)}
       <div class="ata-ent">${esc((e.nome||entidadeNome()).toUpperCase())}${e.secretaria?'<br>'+esc(e.secretaria):''}${e.fundoNome?'<br>'+esc(e.fundoNome):''}</div>
       <h2 class="ata-tit">ATA DA AUDIÊNCIA PÚBLICA DE PRESTAÇÃO DE CONTAS DA SAÚDE</h2>
       <div class="ata-sub">${esc(c.rotulo)} — ${esc(c.textoPeriodo||'')}</div>
-      <p>${quando}${hora}${local}${modal}, realizou-se a Audiência Pública de prestação de contas da Saúde referente ao <b>${esc(c.rotulo)}</b>, em cumprimento ao art. 36 da Lei Complementar nº 141, de 13 de janeiro de 2012, ${pres}${secr}, com a presença de ${nPres ? numeroPorExtenso(nPres)+' ('+nPres+') participante'+(nPres>1?'s':'')+', conforme lista de presença anexa' : 'participantes conforme lista de presença anexa'}.</p>
+      <p>${quando}${hora}${local}${modal}, realizou-se a Audiência Pública de prestação de contas da Saúde referente ao <b>${esc(c.rotulo)}</b>, em cumprimento ao art. 36 da Lei Complementar nº 141, de 13 de janeiro de 2012, ${pres}${secr}, ${presenca}.</p>
       ${a.abertura ? `<p>${esc(a.abertura).replace(/\n/g,'<br>')}</p>` : ''}
       <p><b>Pauta:</b> 1) apresentação do Relatório Detalhado do Quadrimestre Anterior — montante e fonte dos recursos aplicados, auditorias realizadas ou em andamento, e oferta e produção de serviços públicos na rede assistencial, cotejados com os indicadores de saúde; ${retorno.length?'2) retorno dos encaminhamentos da audiência anterior; 3)':'2)'} perguntas e manifestações dos presentes; ${retorno.length?'4)':'3)'} encaminhamentos.</p>
       ${resumoDadosApresentados(c) ? `<p>${esc(resumoDadosApresentados(c))}</p>` : ''}
@@ -4595,30 +5129,115 @@ function ataDocumentoHTML(c, a, paraWord){
       ${listaPresencaHTML(c, a, false, paraWord)}
     </div>`;
 }
+/* ---------------- Membros do Conselho na lista de presença ----------------
+   Os conselheiros do biênio da audiência saem já impressos (nome e
+   representatividade, assinatura em branco) no formato da lista do Conselho:
+   folha A4 em pé com a tabela deitada — NOME / REPRESENTATIVIDADE / ASSINATURA
+   na coluna da direita e 14 conselheiros por folha. "Presentes" fica só para
+   quem não é do Conselho. */
+const LPC_POR_FOLHA = 14;
+function anosDoBienio(b){ return (String(b||'').match(/\d{4}/g)||[]).map(Number); }
+function bienioConselhoDaAta(c, a){
+  const lista = bieniosConselho(); if(!lista.length) return '';
+  if(a && a.bienioConselho && lista.includes(a.bienioConselho)) return a.bienioConselho;
+  const ano = Number(String((a && a.data) || dataAudienciaDe(c) || '').slice(0,4)) || Number(c.ano) || new Date().getFullYear();
+  const inicio = b => Math.min(...anosDoBienio(b));
+  const cand = lista.filter(b=>{ const ys = anosDoBienio(b); return ys.length && Math.min(...ys)<=ano && ano<=Math.max(...ys); });
+  return cand.length ? cand.sort((x,y)=>inicio(y)-inicio(x))[0] : lista[0];
+}
+function membrosConselhoDaAta(c, a){ const b = bienioConselhoDaAta(c, a); return b ? (STATE.conselhoMembros||[]).filter(m=>String(m.bienio||'').trim()===b) : []; }
+/* Ata já finalizada só mostra os conselheiros se alguém marcar a opção: o documento dela não muda sozinho. */
+function listaConselhoMarcada(a){ return a.finalizada ? a.listaConselho===true : a.listaConselho!==false; }
+function incluiConselhoNaLista(c, a){ return listaConselhoMarcada(a) && membrosConselhoDaAta(c, a).length>0; }
+function cabecalhoListaConselhoHTML(paraWord){
+  const e = STATE.entidade || {};
+  const linhas = [e.nome || entidadeNome(), e.secretaria, String(e.conselhoNome||'').trim() || 'Conselho Municipal de Saúde'].filter(Boolean).map(t=>String(t).toUpperCase());
+  const end = [e.endereco ? e.endereco + (e.numero ? ', nº '+e.numero : '') : '', e.telefone ? 'Fone '+e.telefone : '', e.cep ? 'CEP '+e.cep : ''].filter(Boolean).join(' – ');
+  const mun = municipioNome().toUpperCase();
+  // como no papel timbrado: brasão/logo nas laterais, textos no meio e a frase institucional na faixa cinza
+  // o tamanho da letra diminui sozinho para nomes compridos não quebrarem a linha (como no papel timbrado)
+  if(paraWord){
+    const temImg = imagensMarca().length > 0;
+    const fonte = fonteQueCabe(linhas, temImg ? 330 : 470, 15, 10);
+    const p = (t, est) => `<p style="text-align:center;text-indent:0;margin:0;line-height:1.15;font-family:Arial,sans-serif;${est}">${esc(t)}</p>`;
+    const textos = linhas.map(t=>p(t, `font-size:${fonte}pt;font-weight:bold;`)).join('') + (end ? p(end, 'font-size:9pt;font-style:italic;') : '') + (mun ? p(mun, 'font-size:8pt;') : '');
+    const td = 'border:none;padding:0;vertical-align:middle;';
+    const cab = temImg
+      ? `<table style="width:100%;border:none;border-collapse:collapse;margin:0;"><tr><td style="${td}width:70pt;text-align:left;">${imagensMarcaLado('esquerda', true, 90, 75)}</td><td style="${td}">${textos}</td><td style="${td}width:70pt;text-align:right;">${imagensMarcaLado('direita', true, 90, 75)}</td></tr></table>`
+      : textos;
+    return cab + lemaHTML(true);
+  }
+  const esq = imagensMarcaLado('esquerda', false, 120, 95), dir = imagensMarcaLado('direita', false, 120, 95);
+  const fonte = fonteQueCabe(linhas, 318, 15, 10);
+  return `
+    <div class="lpc-cab">
+      <div class="lpc-cab-lado">${esq}</div>
+      <div class="lpc-cab-txt">
+        ${linhas.map(t=>`<div class="l1" style="font-size:${fonte}pt;">${esc(t)}</div>`).join('')}
+        ${end ? `<div class="end">${esc(end)}</div>` : ''}${mun ? `<div class="mun">${esc(mun)}</div>` : ''}
+      </div>
+      <div class="lpc-cab-lado dir">${dir}</div>
+    </div>
+    ${lemaHTML(false)}`;
+}
+function listaConselhoHTML(c, a, paraWord){
+  if(!incluiConselhoNaLista(c, a)) return '';
+  const membros = membrosConselhoDaAta(c, a);
+  const m = municipioNome(), iso = a.data || dataAudienciaDe(c);
+  const dataTxt = `${m ? esc(m)+', ' : ''}${iso ? esc(dataLongaBR(iso)) : '____ de ________________ de ________'}.`;
+  const folhas = []; for(let i=0; i<membros.length; i+=LPC_POR_FOLHA) folhas.push(membros.slice(i, i+LPC_POR_FOLHA));
+  // alturas na proporção da lista do Conselho em Word (8,2 / 6,8 / 6,0 cm), um pouco menores para caber o topo com brasão, logo e frase
+  const LINHAS = [['NOME', x=>x.nome, 'r1', '215pt'], ['REPRESENTATIVIDADE', x=>x.representatividade, 'r2', '180pt'], ['ASSINATURA', ()=>'', 'r3', '155pt']];
+  const cel = (txt, cab) => paraWord
+    ? `<td style="width:${cab?'31.75pt':'32pt'};border:1px solid #000;padding:3pt 2pt;layout-flow:vertical;mso-layout-flow-alt:top-to-bottom;vertical-align:middle;"><p style="margin:0;text-indent:0;line-height:1.1;${cab?'text-align:center;font-size:12pt;font-weight:bold;':'text-align:left;font-size:12pt;'}">${txt}</p></td>`
+    : `<td${cab?' class="lpc-h"':''}><div class="lpc-v">${txt}</div></td>`;
+  return folhas.map((folha, i)=>{
+    // o 1º conselheiro fica junto da coluna dos títulos (à direita); as linhas que sobram ficam em branco
+    const cols = Array.from({length:LPC_POR_FOLHA}, (_,k)=>folha[k]||null).reverse();
+    const linhas = LINHAS.map(([rot, f, cls, alt])=>`<tr ${paraWord ? `style="height:${alt};mso-height-rule:exactly;page-break-inside:avoid;"` : `class="lpc-${cls}"`}>${cols.map(x=>cel(x ? esc(f(x)) : '', false)).join('')}${cel(rot, true)}</tr>`).join('');
+    const quebra = i===0 ? '' : (paraWord ? QUEBRA_WORD : '<div class="ata-quebra"></div>');
+    return `${quebra}
+      <div class="lpc-folha">
+        ${cabecalhoListaConselhoHTML(paraWord)}
+        <p class="lpc-data" style="text-align:right;text-indent:0;${paraWord?'font-size:12pt;margin:8pt 0 8pt;':''}">${dataTxt}</p>
+        <table class="lpc-tab" ${paraWord ? 'style="border-collapse:collapse;table-layout:fixed;width:479.75pt;margin:0 auto;"' : ''}>${linhas}</table>
+      </div>`;
+  }).join('');
+}
 function listaPresencaHTML(c, a, emBranco, paraWord){
+  const conselho = listaConselhoHTML(c, a, paraWord);
+  if(!conselho) return listaPresencaOutrosHTML(c, a, emBranco, paraWord, false);
+  // com os conselheiros, a lista comum só sai se houver outros participantes (ou para assinar em branco)
+  if(!emBranco && !a.presentes.length) return conselho;
+  return conselho + (paraWord ? QUEBRA_WORD : '<div class="ata-quebra"></div>') + listaPresencaOutrosHTML(c, a, emBranco, paraWord, true);
+}
+function listaPresencaOutrosHTML(c, a, emBranco, paraWord, comConselho){
   const linhas = emBranco ? [] : a.presentes;
-  const vazias = emBranco ? 30 : Math.max(0, 5 - linhas.length);
+  const vazias = emBranco ? 25 : Math.max(0, 5 - linhas.length);   // 25 linhas cabem numa folha A4 com o topo (brasão, logo e frase)
   return `
     <div class="ata-lp">
-      ${paraWord || !emBranco ? '' : reportBrandRowHTML()}
-      <h3 class="ata-tit" style="font-size:15px;">LISTA DE PRESENÇA</h3>
+      ${marcaDocHTML(paraWord)}
+      <h3 class="ata-tit" style="font-size:15px;">LISTA DE PRESENÇA${comConselho ? ' — DEMAIS PARTICIPANTES' : ''}</h3>
       <div class="ata-sub">Audiência Pública de prestação de contas da Saúde — ${esc(c.rotulo)}${a.data?' — '+fmtDateBR(a.data):''}${a.local?' — '+esc(a.local):''}</div>
       <table class="ata-tab"><thead><tr><th style="width:34px;">Nº</th><th>Nome</th><th>Cargo / função</th><th>Segmento / instituição</th><th style="width:30%;">Assinatura</th></tr></thead>
         <tbody>${linhas.map((p,i)=>`<tr><td>${i+1}</td><td>${esc(p.nome)}</td><td>${esc(p.cargo)}</td><td>${esc([p.segmento,p.instituicao].filter(Boolean).join(' — '))}</td><td></td></tr>`).join('')}
         ${Array.from({length:vazias},(_,i)=>`<tr class="ata-vaziarow"><td>${linhas.length+i+1}</td><td></td><td></td><td></td><td></td></tr>`).join('')}</tbody></table>
     </div>`;
 }
-function imprimirListaPresenca(emBranco){
+function imprimirListaPresenca(emBranco, soConselho){
   const c = compSel(); const a = ataDe(c.id) || novaAta(c);
+  const html = soConselho ? listaConselhoHTML(c, a, false) : listaPresencaHTML(c, a, emBranco, false);
+  if(!html){ showToast('Nenhum membro do Conselho para imprimir no biênio desta audiência.','warning'); return; }
   let box = document.getElementById('listaPresencaPrint');
   if(!box){ box = document.createElement('div'); box.id = 'listaPresencaPrint'; box.style.cssText = 'position:absolute;left:-99999px;top:0;width:1000px;'; document.body.appendChild(box); }
-  box.innerHTML = `<div class="ata-doc">${listaPresencaHTML(c, a, emBranco, false)}</div>`;
+  box.innerHTML = `<div class="ata-doc">${html}</div>`;
   printReportOrientado('listaPresencaPrint', 'portrait');
 }
-function baixarAtaWord(){
+async function baixarAtaWord(){
+  await prepararMarcaWord();
   const c = compSel(); const a = ataDe(c.id) || novaAta(c);
   const estilo = `body{font-family:"Times New Roman",serif;font-size:12pt;line-height:1.5;text-align:justify;} .ata-ent{text-align:center;font-weight:bold;font-size:11pt;} .ata-tit{text-align:center;font-size:14pt;margin:14pt 0 4pt;} .ata-sub{text-align:center;font-size:10pt;margin-bottom:14pt;} table{border-collapse:collapse;width:100%;} th,td{border:1px solid #000;padding:4pt;font-size:10pt;text-align:left;vertical-align:top;} .ata-vaziarow td{height:22pt;} .ata-assin{margin-top:40pt;} .ata-assin div{display:inline-block;width:45%;text-align:center;margin-right:4%;} .ata-assin .linha{border-top:1px solid #000;margin-bottom:4pt;height:1px;} .ata-vazio{color:#c00;} .ata-modelo img{max-width:100%;}`;
-  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>Ata ${esc(c.rotulo)}</title><style>${estilo}</style></head><body>${ataPreviewHTML(c, a, true)}</body></html>`;
+  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>Ata ${esc(c.rotulo)}</title><style>${PAGINA_WORD_CSS} ${estilo}</style></head><body><div class="WordSection1">${ataPreviewHTML(c, a, true)}</div></body></html>`;
   baixarArquivo(BOM+html, `Ata_Audiencia_${nomeArquivoSeguro(c.rotulo)}.doc`, 'application/msword');
   registrarComando('⭳ Ata exportada para Word');
 }
@@ -4628,6 +5247,11 @@ function finalizarAta(v){
   if(v && !a.data){ showToast('Informe a data da audiência antes de finalizar a ata.','warning'); return; }
   const faltam = v ? pendenciasModelo('ata', c, a) : [];
   if(faltam.length){ showToast(`Faltam ${faltam.length} campo(s) obrigatório(s) do modelo: ${faltam.map(x=>x.rotulo.split(' (')[0]).join(', ')}. Veja a lista “Campos obrigatórios do modelo”.`,'warning'); return; }
+  if(v){
+    // a ata finalizada guarda a escolha da lista do Conselho e o biênio usado (novos cadastros não mudam o documento)
+    a.listaConselho = incluiConselhoNaLista(c, a);
+    if(a.listaConselho && !a.bienioConselho) a.bienioConselho = bienioConselhoDaAta(c, a);
+  }
   a.finalizada = !!v;
   if(v){ c.situacao = 'realizada'; if(!c.dataAudiencia) c.dataAudiencia = a.data; if(!c.horaAudiencia) c.horaAudiencia = a.horaInicio; if(!c.localAudiencia) c.localAudiencia = a.local; }
   registrarAcao((v?'Ata finalizada: ':'Ata reaberta: ')+c.rotulo);
@@ -4636,6 +5260,39 @@ function finalizarAta(v){
 }
 
 /* ---------------- Tela ---------------- */
+function ataConselhoCardHTML(c, a, ed){
+  const bienios = bieniosConselho();
+  if(!bienios.length) return `
+    <div class="card">
+      <h3>🏛️ Membros do Conselho Municipal de Saúde</h3>
+      <div class="muted" style="font-size:12.5px;">Nenhum membro do Conselho cadastrado. Cadastre os conselheiros (nome, representatividade e biênio) em <a href="#" onclick="goto('entidade');return false;">Cadastro da Entidade</a>: eles passam a sair já impressos na lista de presença, no formato da lista do Conselho, só com a assinatura em branco.</div>
+    </div>`;
+  const marcado = listaConselhoMarcada(a), membros = membrosConselhoDaAta(c, a);
+  const auto = bienioConselhoDaAta(c, Object.assign({}, a, { bienioConselho:'' }));
+  const escolhido = a.bienioConselho && bienios.includes(a.bienioConselho) ? a.bienioConselho : '';
+  return `
+    <div class="card">
+      <div class="flexrow" style="margin-bottom:8px;">
+        <h3 style="margin:0;">🏛️ Membros do Conselho Municipal de Saúde (${membros.length})</h3>
+        <div class="actions">
+          <button class="btn ghost small" onclick="imprimirListaPresenca(false, true)" ${marcado && membros.length ? '' : 'disabled'} title="Folha no formato da lista do Conselho, com nome e representatividade preenchidos">🖨️ Imprimir lista do Conselho (para assinar)</button>
+          ${podeEditar('entidade') ? `<button class="btn ghost small" onclick="goto('entidade')">✏️ Editar membros</button>` : ''}
+        </div>
+      </div>
+      <div class="formgrid" style="margin-bottom:10px;">
+        <div class="field half" style="display:flex;align-items:flex-end;"><label class="check" style="text-transform:none;letter-spacing:0;font-weight:500;font-size:13px;color:var(--ink);"><input type="checkbox" ${marcado?'checked':''} ${ed?'':'disabled'} onchange="setAta('listaConselho', this.checked); render();"> Incluir os membros do Conselho na lista de presença (nome e representatividade já preenchidos, assinatura em branco)</label></div>
+        <div class="field half"><label>Biênio dos membros</label><select ${ed?'':'disabled'} onchange="setAta('bienioConselho', this.value); render();">
+          <option value="" ${escolhido?'':'selected'}>Automático pela data da audiência — biênio ${esc(auto)}</option>
+          ${bienios.map(b=>`<option value="${esc(b)}" ${b===escolhido?'selected':''}>Biênio ${esc(b)}</option>`).join('')}
+        </select></div>
+      </div>
+      ${marcado ? (membros.length ? `<div class="table-wrap" style="max-height:260px;"><table><thead><tr><th>Nº</th><th>Nome</th><th>Representatividade</th></tr></thead><tbody>
+          ${membros.map((m,i)=>`<tr><td style="width:40px;">${i+1}</td><td><b>${esc(m.nome)}</b></td><td>${esc(m.representatividade)||'—'}</td></tr>`).join('')}</tbody></table></div>
+        <div class="muted" style="font-size:11.5px;margin-top:6px;">Na impressão e no Word saem em folha A4 em pé com a tabela deitada (NOME / REPRESENTATIVIDADE / ASSINATURA), ${LPC_POR_FOLHA} conselheiros por folha.</div>`
+        : '<div class="muted" style="font-size:12.5px;">Nenhum membro cadastrado neste biênio.</div>')
+        : '<div class="muted" style="font-size:12.5px;">Os membros do Conselho não entram na lista de presença desta ata.</div>'}
+    </div>`;
+}
 function viewAta(){
   const c = compSel(); const pode = podeEditar('ata');
   const a = ataDe(c.id) || novaAta(c);
@@ -4646,6 +5303,7 @@ function viewAta(){
   const en = editingEncId ? a.encaminhamentos.find(p=>p.id===editingEncId) : null;
   const pendentes = encaminhamentosPendentesAnteriores(c);
   const segOpts = sel => `<option value="">—</option>`+SEGMENTOS_ATA.map(s=>`<option ${sel===s?'selected':''}>${esc(s)}</option>`).join('');
+  const comConselho = incluiConselhoNaLista(c, a);
   return `
     <div class="card">
       <div class="flexrow">
@@ -4671,8 +5329,9 @@ function viewAta(){
         <div class="field wide"><label>Texto adicional de abertura (opcional)</label><textarea ${ed?'':'disabled'} onchange="setAta('abertura', this.value)" placeholder="Ex.: A mesa foi composta por…">${esc(a.abertura)}</textarea></div>
       </div>
     </div>
+    ${ataConselhoCardHTML(c, a, ed)}
     <div class="card">
-      <div class="flexrow" style="margin-bottom:8px;"><h3 style="margin:0;">👥 Presentes (${a.presentes.length})</h3>
+      <div class="flexrow" style="margin-bottom:8px;"><h3 style="margin:0;">👥 ${comConselho ? 'Outros participantes — não membros do Conselho' : 'Presentes'} (${a.presentes.length})</h3>
         ${ed?`<div class="actions"><button class="btn ghost small" onclick="document.getElementById('prArq').click()">⭱ Importar lista (Excel/CSV)</button><input type="file" id="prArq" accept=".xlsx,.xls,.ods,.csv,.txt" style="display:none" onchange="importarPresentes(event)"><button class="btn ghost small" onclick="copiarPresentesAnterior()">↺ Copiar da audiência anterior</button></div>`:''}</div>
       ${ed?`<div class="formgrid" style="margin-bottom:10px;">
         <div class="field half"><label>Nome</label><input id="prNome" onkeydown="if(event.key==='Enter') adicionarPresente()"></div>
@@ -4683,7 +5342,9 @@ function viewAta(){
       </div>`:''}
       ${a.presentes.length ? `<div class="table-wrap" style="max-height:320px;"><table><thead><tr><th>Nº</th><th>Nome</th><th>Cargo / função</th><th>Segmento</th><th>Instituição</th><th></th></tr></thead><tbody>
         ${a.presentes.map((p,i)=>`<tr><td>${i+1}</td><td><b>${esc(p.nome)}</b></td><td>${esc(p.cargo)||'—'}</td><td>${esc(p.segmento)||'—'}</td><td>${esc(p.instituicao)||'—'}</td><td>${ed?`<button class="btn ghost small" onclick="removerPresente('${p.id}')">🗑</button>`:''}</td></tr>`).join('')}</tbody></table></div>
-        <div class="actions" style="margin-top:6px;"><button class="btn ghost small" onclick="imprimirListaPresenca(false)">🖨️ Imprimir lista com os nomes (para assinar)</button></div>` : '<div class="muted" style="font-size:12.5px;">Nenhum presente registrado. Dica: imprima a “Lista de presença em branco” para recolher as assinaturas e digite ou importe os nomes depois.</div>'}
+        <div class="actions" style="margin-top:6px;"><button class="btn ghost small" onclick="imprimirListaPresenca(false)">🖨️ Imprimir lista com os nomes (para assinar)</button></div>` : `<div class="muted" style="font-size:12.5px;">${comConselho
+          ? 'Nenhum outro participante registrado. Preencha aqui só quem não é membro do Conselho (os conselheiros já saem na lista do Conselho, acima). A “Lista de presença em branco” imprime a lista do Conselho e mais uma folha em branco para os demais.'
+          : 'Nenhum presente registrado. Dica: imprima a “Lista de presença em branco” para recolher as assinaturas e digite ou importe os nomes depois.'}</div>`}
     </div>
     <div class="card" id="ataPerguntas">
       <h3>🙋 Perguntas e manifestações da população (${a.perguntas.length})</h3>
@@ -4808,6 +5469,8 @@ const CAMPOS_ATA = [
   ['CARGO_GESTOR','Cargo do(a) gestor(a)', ()=>STATE.entidade.cargoSecretario],
   ['FUNDO','Nome do Fundo Municipal de Saúde', ()=>STATE.entidade.fundoNome],
   ['PRESIDENTE_FUNDO','Presidente do Fundo Municipal', ()=>STATE.entidade.fundoPresidente],
+  ['CONSELHO','Nome do Conselho Municipal de Saúde', ()=>conselhoPadrao()],
+  ['PRESIDENTE_CONSELHO','Presidente do Conselho Municipal de Saúde', ()=>STATE.entidade.conselhoPresidente],
   ['CNPJ','CNPJ da entidade', ()=>STATE.entidade.cnpj],
   ['COMPETENCIA','Competência (ex.: 2º Quadrimestre 2026)', c=>c.rotulo],
   ['QUADRIMESTRE','Quadrimestre (ex.: 2º Quadrimestre de 2026)', c=>`${c.quadrimestre}º Quadrimestre de ${c.ano}`],
@@ -4903,6 +5566,8 @@ function valorCampoDoc(tipo, chave, c, d){
 function renderModelo(tipo, c, d, paraWord){
   const mapa = mapaCampos(tipo);
   let html = modeloSemEtiquetas(MODELO_HTML[tipo] || '');
+  // o topo (brasão, logo, frase) entra acima do modelo — a não ser que o próprio modelo já comece com imagem
+  const topo = /<img/i.test(html.slice(0, 3000)) ? '' : marcaDocHTML(paraWord);
   // campos de bloco sozinhos num parágrafo: o parágrafo inteiro vira o bloco (tabela, lista)
   html = html.replace(/<p[^>]*>\s*\{\{\s*([^{}]+?)\s*\}\}\s*<\/p>/gi, (m, nome)=>{
     const v = valorCampoDoc(tipo, chaveCampo(nome), c, d);
@@ -4920,10 +5585,10 @@ function renderModelo(tipo, c, d, paraWord){
   if(tipo==='ata'){
     const temLista = /\{\{\s*lista[\s_]*presen/i.test(MODELO_HTML[tipo]||'');
     if(d.anexarListaModelo!==false && !temLista){
-      html += (paraWord ? '<br style="page-break-before:always" clear="all">' : '<div class="ata-quebra"></div>') + listaPresencaHTML(c, d, false, paraWord);
+      html += (paraWord ? QUEBRA_WORD : '<div class="ata-quebra"></div>') + listaPresencaHTML(c, d, false, paraWord);
     }
   }
-  return `<div class="ata-doc ata-modelo">${html}</div>`;
+  return `<div class="ata-doc ata-modelo">${topo}${html}</div>`;
 }
 /* Prévia usada na tela, na impressão e no Word: modelo importado ou texto automático. */
 function docPreviewHTML(tipo, c, d, paraWord){
@@ -5139,7 +5804,7 @@ async function removerModelo(tipo){
 }
 const ESTILO_WORD_DOC = 'body{font-family:"Times New Roman",serif;font-size:12pt;line-height:1.5;text-align:justify;} .ata-ent{text-align:center;font-weight:bold;font-size:11pt;} .ata-tit{text-align:center;font-size:14pt;margin:14pt 0 4pt;} .ata-sub{text-align:center;font-size:10pt;margin-bottom:14pt;} .doc-secao{font-size:12pt;margin:12pt 0 6pt;} table{border-collapse:collapse;width:100%;} th,td{border:1px solid #000;padding:4pt;font-size:10pt;text-align:left;vertical-align:top;} .ata-vaziarow td{height:22pt;} .ata-assin{margin-top:40pt;} .ata-assin div{display:inline-block;width:45%;text-align:center;margin-right:4%;margin-bottom:30pt;} .ata-assin .linha{border-top:1px solid #000;margin-bottom:4pt;height:1px;} .ata-vazio{color:#c00;} .ata-modelo img{max-width:100%;}';
 function htmlWord(titulo, corpo){
-  return `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>${esc(titulo)}</title><style>${ESTILO_WORD_DOC}</style></head><body>${corpo}</body></html>`;
+  return `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>${esc(titulo)}</title><style>${PAGINA_WORD_CSS} ${ESTILO_WORD_DOC}</style></head><body><div class="WordSection1">${corpo}</div></body></html>`;
 }
 function baixarModeloWord(tipo){
   if(!MODELO_HTML[tipo]) return;
@@ -5355,7 +6020,9 @@ const DOCUMENTOS_PADRAO_PARECER = [
 let editingMembroId = null;
 
 function qExtenso(c){ return `${c.quadrimestre}º quadrimestre de ${c.ano}`; }
-function conselhoPadrao(){ const m = municipioNome(); return 'Conselho Municipal de Saúde' + (m ? ' de '+m : ''); }
+function conselhoNomeAutomatico(){ const m = municipioNome(); return 'Conselho Municipal de Saúde' + (m ? ' de '+m : ''); }
+/* Nome cadastrado na Entidade; sem cadastro, o nome montado com o município (como antes). */
+function conselhoPadrao(){ return String((STATE.entidade||{}).conselhoNome||'').trim() || conselhoNomeAutomatico(); }
 function dataAudienciaDe(c){ const a = STATE.atas[c.id]; return (a && a.data) || c.dataAudiencia || ''; }
 function localAudienciaDe(c){ const a = STATE.atas[c.id]; return (a && a.local) || c.localAudiencia || ''; }
 function docMaisRecente(colecao, exceto){
@@ -5388,7 +6055,7 @@ function novaResolucao(c){
   const ant = docMaisRecente(STATE.resolucoes, c.id) || {}, antP = docMaisRecente(STATE.pareceres, c.id) || {};
   return { numero: proximoNumeroDoc(STATE.resolucoes), data:'', conselho: ant.conselho || antP.conselho || conselhoPadrao(),
            ementa:'', tipoReuniao:'Ordinária', numeroReuniao:'', dataReuniao:'', decisao:'', usarConsiderandosPadrao:true, considerandos:[], artigos:[],
-           presidente: ant.presidente || '', cargoPresidente: ant.cargoPresidente || 'Presidente do Conselho Municipal de Saúde',
+           presidente: ant.presidente || (STATE.entidade||{}).conselhoPresidente || '', cargoPresidente: ant.cargoPresidente || 'Presidente do Conselho Municipal de Saúde',
            homologar: ant.homologar!==false, homologador: ant.homologador || '', cargoHomologador: ant.cargoHomologador || 'Prefeito(a) Municipal', dataHomologacao:'', finalizada:false };
 }
 function parecerDe(compId, criar){
@@ -5470,7 +6137,8 @@ function finalizarDocConselho(tipo, v){
   saveState(true); render();
   showToast(v ? `${nome} finalizad${tipo==='parecer'?'o':'a'}.` : `${nome} reabert${tipo==='parecer'?'o':'a'} para edição.`, 'success');
 }
-function baixarDocConselhoWord(tipo){
+async function baixarDocConselhoWord(tipo){
+  await prepararMarcaWord();
   const c = compSel(); const d = DOCS_MODELO[tipo].dados(c);
   const nome = tipo==='parecer' ? 'Parecer' : 'Resolucao';
   baixarArquivo(BOM+htmlWord(`${nome} ${c.rotulo}`, docPreviewHTML(tipo, c, d, true)), `${nome}_${nomeArquivoSeguro(c.rotulo)}.doc`, 'application/msword');
@@ -5581,7 +6249,7 @@ function parecerDocumentoHTML(c, p, paraWord){
   const ress = Array.isArray(p.ressalvas) ? p.ressalvas : [];
   return `
     <div class="ata-doc">
-      ${paraWord ? '' : reportBrandRowHTML()}
+      ${marcaDocHTML(paraWord)}
       <div class="ata-ent">${esc(String(p.conselho || conselhoPadrao()).toUpperCase())}${p.comissao ? '<br>'+esc(p.comissao) : ''}</div>
       <h2 class="ata-tit">PARECER${p.numero ? ' Nº '+esc(p.numero) : ''}</h2>
       <div class="ata-sub">${esc(c.rotulo)} — ${esc(c.textoPeriodo||'')}</div>
@@ -5607,7 +6275,7 @@ function resolucaoDocumentoHTML(c, r, paraWord){
   const reuniao = `${r.numeroReuniao ? esc(r.numeroReuniao)+'ª ' : ''}Reunião ${esc(r.tipoReuniao || 'Ordinária')}${r.dataReuniao ? ', realizada em '+dataLongaBR(r.dataReuniao) : ''}`;
   return `
     <div class="ata-doc">
-      ${paraWord ? '' : reportBrandRowHTML()}
+      ${marcaDocHTML(paraWord)}
       <div class="ata-ent">${esc(String(r.conselho || conselhoPadrao()).toUpperCase())}</div>
       <h2 class="ata-tit">${tit}</h2>
       <p class="doc-ementa" style="${paraWord ? 'margin-left:200pt;' : ''}">${esc(ementaResolucao(c, r))}</p>
@@ -5890,8 +6558,9 @@ const ONDE_PREENCHER = [
   [['DATA_AUDIENCIA','LOCAL_AUDIENCIA','RETORNO_ENCAMINHAMENTOS'], 'Ata da Audiência', 'ata'],
   [['COMPETENCIA','QUADRIMESTRE','QUADRIMESTRE_EXTENSO','ANO','MESES','PERIODO','PERIODO_INICIO','PERIODO_FIM','PRAZO_LEGAL'], 'Competências', 'competencias'],
   [['PARECER_NUMERO','PARECER_CONCLUSAO'], 'aba Parecer', 'parecer'],
+  [['CONSELHO','PRESIDENTE_CONSELHO'], 'Cadastro da Entidade', 'entidade', ['ata']],   // no parecer/resolução vêm da própria tela
 ];
-function ondePreencher(chave){ const x = ONDE_PREENCHER.find(g=>g[0].includes(chave)); return x ? { nome:x[1], view:x[2] } : null; }
+function ondePreencher(chave, tipo){ const x = ONDE_PREENCHER.find(g=>g[0].includes(chave) && (!g[3] || g[3].includes(tipo))); return x ? { nome:x[1], view:x[2] } : null; }
 function camposObrigatorios(tipo, c, d){
   const mapa = mapaCampos(tipo);
   return camposUsadosModelo(tipo).map(k=>{
@@ -5937,7 +6606,7 @@ function secaoModeloMarcacaoHTML(tipo, c, d, pode, ed){
   const usar = d.usarModelo!==false;
   const abrirEditor = ui.marcar!==undefined ? ui.marcar : !obrig.length;
   const linhaObrig = x=>{
-    const onde = ondePreencher(x.chave);
+    const onde = ondePreencher(x.chave, tipo);
     let valor;
     if(x.livre){
       const anterior = valorLivreAnterior(tipo, x.chave) || ((camposLivres(tipo).find(z=>z.chave===x.chave)||{}).exemplo || '');
@@ -6841,7 +7510,7 @@ function viewRelQuadrimestre(){
       <button class="btn secondary" onclick="exportarRelatorioExcel()">⭳ Exportar Excel</button>
     </div>
     <div class="card" id="relQPrint">
-      ${reportBrandRowHTML()}
+      ${marcaDocHTML(false)}
       <div style="text-align:center;margin-bottom:14px;">
         <div style="font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);font-weight:700;">${esc(e.nome||entidadeNome())}${e.secretaria?' — '+esc(e.secretaria):''}</div>
         <div style="font-size:18px;font-weight:800;color:var(--brand-dark);margin-top:4px;">Relatório Detalhado do Quadrimestre Anterior — ${esc(c.rotulo)}</div>
@@ -6930,6 +7599,7 @@ function viewRelEvolucao(){
   return `
     <div class="actions no-print" style="margin-bottom:12px;"><button class="btn" onclick="printReportAsk('relEvPrint','Evolução entre quadrimestres')">🖨️ Imprimir / PDF</button><button class="btn secondary" onclick="exportarIndicadoresExcel()">⭳ Exportar Excel</button></div>
     <div id="relEvPrint">
+    ${marcaSoImpressaoHTML()}
     <div class="card">
       <div class="flexrow" style="margin-bottom:8px;"><h2 style="margin:0;">📈 Evolução de um indicador</h2>
         <select class="no-print" onchange="relEvolIndicador=this.value;render()" style="padding:6px 8px;border:1px solid var(--line);border-radius:7px;max-width:100%;">${inds.map(i=>`<option value="${i.id}" ${sel&&sel.id===i.id?'selected':''}>${esc((getArea(i.areaId)||{}).icone||'')} ${esc(i.nome)}</option>`).join('')}</select></div>
@@ -6970,6 +7640,9 @@ function printReport(targetId){
   if(!ts){ ts = document.createElement('div'); ts.className = 'print-timestamp'; el.insertBefore(ts, el.firstChild); }
   ts.textContent = 'Emitido em ' + new Date().toLocaleString('pt-BR') + (currentUser ? ' por ' + (currentUser.nome||currentUser.usuario) : '');
   el.classList.add('print-target');
+  // impressão montada fora da tela do sistema (documento anexo, lista de presença): esconde a tela para não sair página em branco
+  const appEl = document.getElementById('app');
+  document.body.classList.toggle('imprimindo-fora', !!appEl && !appEl.contains(el));
   registrarComando('🖨️ Impressão');
   setTimeout(()=>window.print(), 120);
 }
@@ -6992,6 +7665,7 @@ function printReportOrientado(targetId, orientacao){
 window.addEventListener('afterprint', ()=>{
   const st = document.getElementById('tempPrintStyle'); if(st) st.remove();
   document.querySelectorAll('.print-target').forEach(n=>n.classList.remove('print-target'));
+  document.body.classList.remove('imprimindo-fora');
 });
 
 /* ============================================================
@@ -7138,7 +7812,9 @@ async function exportAllData(){
     const imagens = {}; Object.keys(STATE.imagens).forEach(id=>{ if(IMG_CACHE[id]) imagens[id] = IMG_CACHE[id]; });
     const modelos = {};   // modelos de ata / parecer / resolução (o texto fica fora do STATE)
     for(const tipo of Object.keys(DOCS_MODELO)){ if(modeloInfo(tipo)){ try{ modelos[tipo] = await lerModeloHTML(tipo); }catch(e){} } }
-    const payload = { _tipo:'backup-audiencias-saude', _versao: appVersao(), _exportadoEm: new Date().toISOString(), dados: STATE, linhas, imagens, modelos };
+    const anexos = {};    // documentos do Fundo, do Conselho e dos membros (arquivo original)
+    for(const a of (STATE.anexos||[])){ try{ anexos[a.id] = await lerAnexo(a); }catch(e){ console.warn('Documento não encontrado:', a.nome, e); } }
+    const payload = { _tipo:'backup-audiencias-saude', _versao: appVersao(), _exportadoEm: new Date().toISOString(), dados: STATE, linhas, imagens, modelos, anexos };
     baixarArquivo(JSON.stringify(payload), `backup_audiencias_saude_${hojeISO()}.json`, 'application/json');
     registrarComando('⭳ Backup exportado');
     showToast('Backup exportado! Guarde este arquivo em local seguro.','success');
@@ -7174,6 +7850,11 @@ function importAllData(event){
       for(const tipo of Object.keys(DOCS_MODELO)){
         const cfg = DOCS_MODELO[tipo], html = (payload.modelos||{})[tipo];
         if(novo[cfg.estado] && html){ novo[cfg.estado].partes = await blobSalvar(cfg.blob, html, 0); novo[cfg.estado].blob = cfg.blob; MODELO_HTML[tipo] = html; MODELO_VERSAO[tipo] = novo[cfg.estado].atualizadoEm; }
+      }
+      // backups antigos não trazem documentos: a ficha fica como está (o arquivo continua na nuvem)
+      for(const a of (Array.isArray(novo.anexos) ? novo.anexos : [])){
+        const d = (payload.anexos||{})[a.id];
+        if(d){ a.blob = 'anx_'+a.id; a.partes = await blobSalvar(a.blob, d, 0); ANEXO_CACHE[a.id] = d; }
       }
       STATE = Object.assign({}, STATE, novo);
       ANALISE_CACHE = {};
